@@ -3,6 +3,8 @@ import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-rou
 import {
   AlertCircle,
   ArrowRight,
+  Award,
+  Building,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -10,12 +12,19 @@ import {
   FileCheck,
   FileText,
   Home,
+  Key,
+  Lock,
   LogOut,
+  MapPin,
   Menu,
   Plus,
   Search,
+  Shield,
+  ShieldAlert,
   ShieldCheck,
   Upload,
+  User,
+  UserCheck,
   UserPlus,
   Users,
   X
@@ -23,11 +32,14 @@ import {
 import {
   addFamilyMember,
   createApplication,
+  demoUsers,
   getApplications,
   getApplicationsByFamilyId,
   getCurrentUser,
   getFamilies,
   getFamilyById,
+  getOfficerJurisdiction,
+  hasPermission,
   initializeDemoData,
   loginUser,
   logoutUser,
@@ -44,6 +56,17 @@ const statusNames = {
   under_review: "ચકાસણી હેઠળ",
   approved: "મંજૂર",
   rejected: "નામંજૂર"
+};
+
+const permissionLabels = {
+  verify_family: "પરિવાર ચકાસણી અધિકાર",
+  review_application: "અરજી સમીક્ષા અધિકાર",
+  approve_application: "યોજના મંજૂરી અધિકાર",
+  reject_application: "અરજી નામંજૂરી અધિકાર",
+  request_info: "વધારાની માહિતી વિનંતી અધિકાર",
+  view_reports: "વહીવટી અહેવાલ અધિકાર",
+  view_families: "પરિવાર 360° શોધ અધિકાર",
+  view_eligible_unserved: "પ્રો-એક્ટિવ પાત્રતા લિસ્ટ અધિકાર"
 };
 
 const money = value => new Intl.NumberFormat("en-IN").format(value);
@@ -67,16 +90,18 @@ function Header({ officer = false }) {
         ["પરિવાર શોધ", "/officer/families"],
         ["ચકાસણી", "/officer/verification"],
         ["અરજીઓ", "/officer/applications"],
-        ["પાત્ર પરિવાર", "/officer/eligible-families"]
+        ["પાત્ર પરિવાર", "/officer/eligible-families"],
+        ["અધિકારી પ્રોફાઇલ", "/officer/profile"]
       ]
     : user
     ? [
         ["ડેશબોર્ડ", "/citizen"],
         ["મારું પરિવાર", "/citizen/family"],
-        ["સભ્યો", "/citizen/members"],
-        ["યોજનાઓ", "/citizen/schemes"],
+        ["પરિવારના સભ્યો", "/citizen/members"],
+        ["સરકારી યોજનાઓ", "/citizen/schemes"],
         ["મારી અરજીઓ", "/citizen/applications"],
-        ["ચકાસણી", "/citizen/verification"]
+        ["દસ્તાવેજો / ચકાસણી", "/citizen/verification"],
+        ["પ્રોફાઇલ", "/citizen/profile"]
       ]
     : [
         ["હોમ", "/"],
@@ -92,8 +117,8 @@ function Header({ officer = false }) {
     <>
       <div className="topline">
         <div className="container topinner">
-          <span>ગુજરાત સરકાર</span>
-          <span>સત્તાવાર ડિજિટલ સેવા</span>
+          <span>ગુજરાત સરકાર · ડિજિટલ સેવા પોર્ટલ</span>
+          <span>{officer ? "અધિકૃત સરકારી કર્મચારી પ્રવેશ ક્ષેત્ર" : "સત્તાવાર નાગરિક સેવા"}</span>
         </div>
       </div>
       <header className="brandbar">
@@ -106,7 +131,9 @@ function Header({ officer = false }) {
             </div>
             <div>
               <div className="brandtitle">પરિવાર ઓળખ સંખ્યા</div>
-              <div className="brandsub">Parivar ID {officer && "· અધિકારી પોર્ટલ"}</div>
+              <div className="brandsub">
+                Parivar ID {officer ? "· સરકારી અધિકારી પોર્ટલ" : "· સત્તાવાર પોર્ટલ"}
+              </div>
             </div>
           </Link>
           <button className="mobileMenu" onClick={() => setOpen(!open)} aria-label="મેનુ">
@@ -123,7 +150,7 @@ function Header({ officer = false }) {
                 className="linkbutton navlogout"
                 onClick={() => {
                   logoutUser();
-                  window.location.href = "/";
+                  window.location.href = officer ? "/officer/login" : "/";
                 }}
               >
                 બહાર નીકળો <LogOut size={14} />
@@ -131,10 +158,10 @@ function Header({ officer = false }) {
             ) : (
               <>
                 <Link className="portalSwitch" to="/login">
-                  પ્રવેશ કરો
+                  નાગરિક પ્રવેશ
                 </Link>
                 <Link className="primary smallButton" to="/register">
-                  નોંધણી કરો
+                  પરિવાર નોંધણી કરો
                 </Link>
               </>
             )}
@@ -152,14 +179,20 @@ function Footer() {
         <div>
           <div className="footerbrand">ગુજરાત સરકાર</div>
           <p>પરિવાર ઓળખ સંખ્યા સેવા · ડિજિટલ ગુજરાત મિશન</p>
+          <p style={{ fontSize: "12px", color: "#8a9ba8", marginTop: "8px" }}>
+            તમામ નાગરિકો માટે સમાન ડિજિટલ ઓળખ અને સરકારી કલ્યાણકારી યોજનાઓનું સીધું વિતરણ.
+          </p>
         </div>
         <div>
           <strong>મહત્વપૂર્ણ લિંક્સ</strong>
           <Link to="/">મુખ્ય પૃષ્ઠ</Link>
           <Link to="/#family">પરિવાર ઓળખ શું છે?</Link>
           <Link to="/#schemes">સરકારી યોજનાઓ</Link>
-          <Link to="/login">પ્રવેશ કરો</Link>
-          <Link to="/register">નોંધણી કરો</Link>
+          <Link to="/login">નાગરિક પ્રવેશ</Link>
+          <Link to="/register">નવા પરિવારની નોંધણી</Link>
+          <Link to="/officer/login" style={{ color: "var(--orange)", marginTop: "12px" }}>
+            સરકારી અધિકારી પ્રવેશ (Official Login)
+          </Link>
         </div>
         <div>
           <strong>મદદ અને સંપર્ક</strong>
@@ -168,7 +201,7 @@ function Footer() {
           <span>ગાંધીનગર, ગુજરાત</span>
         </div>
       </div>
-      <div className="footerbottom">© 2026 ગુજરાત સરકાર. સત્તાવાર પરિવાર ઓળખ સેવા ડેમો પોર્ટલ.</div>
+      <div className="footerbottom">© 2026 ગુજરાત સરકાર. સત્તાવાર પરિવાર ઓળખ સેવા પોર્ટલ.</div>
     </footer>
   );
 }
@@ -209,7 +242,7 @@ function PublicHome() {
               </p>
               <div className="actions">
                 <Link className="primary" to="/login">
-                  પ્રવેશ કરો <ArrowRight size={17} />
+                  નાગરિક પ્રવેશ <ArrowRight size={17} />
                 </Link>
                 <Link className="secondary" to="/register">
                   નવો પરિવાર નોંધણી કરો
@@ -434,38 +467,23 @@ function Field({ label, ...props }) {
   );
 }
 
-function Login() {
+/**
+ * Dedicated Citizen Login Component (/login)
+ * Strictly for citizens. Explicitly blocks officer accounts and redirects them to the officer portal.
+ */
+function CitizenLogin() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState("citizen");
   const [form, setForm] = useState({ identifier: "9876543210", password: "Citizen@123" });
   const [error, setError] = useState("");
-
-  const switchTab = role => {
-    setTab(role);
-    setError("");
-    if (role === "citizen") {
-      setForm({ identifier: "9876543210", password: "Citizen@123" });
-    } else {
-      setForm({ identifier: "officer@gujarat.gov.in", password: "Officer@123" });
-    }
-  };
 
   const submit = event => {
     event.preventDefault();
     setError("");
-    const user = loginUser(form.identifier, form.password);
-    if (!user) {
-      return setError(
-        tab === "officer"
-          ? "અધિકારી પ્રવેશ વિગતો ખોટી છે. ડેમો: officer@gujarat.gov.in / Officer@123"
-          : "નાગરિક પ્રવેશ વિગતો ખોટી છે. ડેમો: 9876543210 / Citizen@123"
-      );
+    const res = loginUser(form.identifier, form.password, "citizen");
+    if (res.error) {
+      return setError(res.error);
     }
-    if (tab === "officer" && user.role !== "officer") {
-      logoutUser();
-      return setError("આ ખાતું અધિકારી ખાતું નથી.");
-    }
-    navigate(user.role === "officer" ? "/officer" : "/citizen");
+    navigate("/citizen");
   };
 
   return (
@@ -474,38 +492,20 @@ function Login() {
       <main className="authPage container">
         <div className="authGrid">
           <section className="authCard">
-            <div className="eyebrow">સુરક્ષિત ઓળખ પોર્ટલ</div>
-            <h1>{tab === "officer" ? "અધિકારી પ્રવેશ" : "નાગરિક પ્રવેશ"}</h1>
+            <div className="eyebrow">સુરક્ષિત નાગરિક પોર્ટલ</div>
+            <h1>નાગરિક પ્રવેશ</h1>
             <p className="muted">
-              {tab === "officer"
-                ? "ચકાસણી અને અરજી વ્યવસ્થાપન માટે સરકારી અધિકારી પ્રવેશ."
-                : "તમારા પરિવારની ઓળખ અને સરકારી સેવાઓ માટે પ્રવેશ કરો."}
+              તમારા પરિવારની ઓળખ, સભ્યો અને સરકારી યોજનાઓની માહિતી માટે પ્રવેશ કરો.
             </p>
-
-            <div className="filterbar" style={{ marginTop: "14px", marginBottom: "18px" }}>
-              <button
-                type="button"
-                className={tab === "citizen" ? "active" : ""}
-                onClick={() => switchTab("citizen")}
-              >
-                નાગરિક પ્રવેશ
-              </button>
-              <button
-                type="button"
-                className={tab === "officer" ? "active" : ""}
-                onClick={() => switchTab("officer")}
-              >
-                સરકારી અધિકારી પ્રવેશ
-              </button>
-            </div>
 
             <form onSubmit={submit}>
               <label>
-                {tab === "officer" ? "અધિકારી ઈમેલ" : "મોબાઇલ નંબર / ઈમેલ"}
+                મોબાઇલ નંબર અથવા ઈમેલ
                 <input
                   required
                   value={form.identifier}
                   onChange={e => setForm({ ...form, identifier: e.target.value })}
+                  placeholder="9876543210"
                 />
               </label>
               <label>
@@ -519,42 +519,169 @@ function Login() {
               </label>
               {error && <div className="error">{error}</div>}
               <button className="primary" type="submit">
-                {tab === "officer" ? "અધિકારી પ્રવેશ કરો" : "પ્રવેશ કરો"} <ArrowRight size={16} />
+                પ્રવેશ કરો <ArrowRight size={16} />
               </button>
             </form>
 
             <div className="authLinks">
-              <span>સુરક્ષિત સત્તાવાર પોર્ટલ</span>
-              {tab === "citizen" && <Link to="/register">નવું ખાતું બનાવો (નોંધણી કરો)</Link>}
+              <span>નવો પરિવાર છે?</span>
+              <Link to="/register">નવો પરિવાર નોંધણી કરો</Link>
+            </div>
+
+            <div className="govAuthNotice">
+              <Lock size={18} style={{ flexShrink: 0, marginTop: "2px" }} />
+              <div>
+                <strong>સરકારી અધિકારીઓ માટે:</strong>
+                <p style={{ margin: "2px 0 0 0" }}>
+                  આ પ્રવેશ માત્ર નાગરિકો માટે છે. સરકારી વહીવટી પ્રવેશ માટે{" "}
+                  <Link to="/officer/login" style={{ color: "var(--navy)", fontWeight: 700, textDecoration: "underline" }}>
+                    અધિકારી પોર્ટલ પર જાઓ
+                  </Link>
+                  .
+                </p>
+              </div>
             </div>
           </section>
 
           <section className="officerLogin">
             <div className="featureIcon">
-              <ShieldCheck size={28} />
+              <UserCheck size={28} />
             </div>
-            <h2>હેકાથોન ડેમો પ્રવેશ</h2>
-            <p>પૂર્વનિર્ધારિત ઓળખ ખાતા દ્વારા તુરંત કાર્યપદ્ધતિ ચકાસો:</p>
+            <h2>નાગરિક ડેમો પ્રવેશ</h2>
+            <p>પૂર્વનિર્ધારિત નાગરિક ઓળખ ખાતા દ્વારા તુરંત લોગિન કરો:</p>
+            <div style={{ margin: "14px 0" }}>
+              <button
+                type="button"
+                className="secondary"
+                style={{ width: "100%", textAlign: "left", display: "block" }}
+                onClick={() => setForm({ identifier: "9876543210", password: "Citizen@123" })}
+              >
+                <strong>રાકેશભાઈ પટેલ</strong>
+                <br />
+                <small>મોબાઇલ: 9876543210 / પાસવર્ડ: Citizen@123</small>
+                <br />
+                <small style={{ color: "var(--blue)" }}>Family ID: GJ-2026-00124</small>
+              </button>
+            </div>
+            <small>નોંધ: નોંધણી કર્યા પછી આપ આપના નવા બનાવેલા ખાતાથી પણ લોગિન કરી શકો છો.</small>
+          </section>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+/**
+ * Dedicated Government Officer Login Component (/officer/login)
+ * Strictly for authorized government personnel. Blocks citizen accounts.
+ */
+function OfficerLogin() {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ identifier: "officer@gujarat.gov.in", password: "Officer@123" });
+  const [error, setError] = useState("");
+
+  const submit = event => {
+    event.preventDefault();
+    setError("");
+    const res = loginUser(form.identifier, form.password, "officer");
+    if (res.error) {
+      return setError(res.error);
+    }
+    navigate("/officer");
+  };
+
+  return (
+    <div className="app">
+      <Header officer />
+      <main className="authPage container">
+        <div className="authGrid">
+          <section className="authCard" style={{ borderTop: "4px solid var(--navy)" }}>
+            <div className="eyebrow" style={{ color: "var(--orange)" }}>
+              ગુજરાત સરકાર · સત્તાવાર ઇન્ટ્રાનેટ
+            </div>
+            <h1>સરકારી અધિકારી પ્રવેશ</h1>
+            <p className="muted">
+              પરિવાર રેકોર્ડ ચકાસણી, દસ્તાવેજ પ્રમાણીકરણ અને સરકારી યોજના અરજી સમીક્ષા માટે અધિકૃત
+              પ્રવેશ.
+            </p>
+
+            <form onSubmit={submit}>
+              <label>
+                સત્તાવાર સરકારી ઈમેલ (@gujarat.gov.in)
+                <input
+                  required
+                  type="email"
+                  value={form.identifier}
+                  onChange={e => setForm({ ...form, identifier: e.target.value })}
+                  placeholder="officer@gujarat.gov.in"
+                />
+              </label>
+              <label>
+                સુરક્ષિત પાસવર્ડ
+                <input
+                  required
+                  type="password"
+                  value={form.password}
+                  onChange={e => setForm({ ...form, password: e.target.value })}
+                />
+              </label>
+              {error && <div className="error">{error}</div>}
+              <button className="primary" type="submit">
+                અધિકારી પ્રમાણીકરણ <ArrowRight size={16} />
+              </button>
+            </form>
+
+            <div className="authLinks">
+              <span>સરકારી વહીવટી અધિકારક્ષેત્ર</span>
+              <Link to="/login" style={{ color: "var(--muted)" }}>
+                નાગરિક પ્રવેશ પર પાછા જાઓ
+              </Link>
+            </div>
+          </section>
+
+          <section className="officerLogin" style={{ background: "#edf2f7", border: "1px solid #cbd5e1" }}>
+            <div className="featureIcon" style={{ color: "var(--navy)" }}>
+              <Shield size={28} />
+            </div>
+            <h2>અધિકૃત ડેમો હોદ્દાઓ</h2>
+            <p>વહીવટી સ્તર અનુસાર અધિકારક્ષેત્ર પસંદ કરો:</p>
             <div style={{ margin: "14px 0", display: "grid", gap: "10px" }}>
               <button
                 type="button"
                 className="secondary"
-                onClick={() => switchTab("citizen")}
+                style={{ textAlign: "left", display: "block" }}
+                onClick={() =>
+                  setForm({ identifier: "officer@gujarat.gov.in", password: "Officer@123" })
+                }
               >
-                ડેમો નાગરિક: 9876543210
+                <strong>તાલુકા ચકાસણી અધિકારી</strong>
+                <br />
+                <small>શ્રી વિજયકુમાર પંડ્યા · ગાંધીનગર તાલુકો</small>
+                <br />
+                <small style={{ color: "var(--blue)" }}>officer@gujarat.gov.in</small>
               </button>
+
               <button
                 type="button"
                 className="secondary"
-                onClick={() => switchTab("officer")}
+                style={{ textAlign: "left", display: "block" }}
+                onClick={() =>
+                  setForm({
+                    identifier: "district.officer@gujarat.gov.in",
+                    password: "Officer@123"
+                  })
+                }
               >
-                ડેમો અધિકારી: officer@gujarat.gov.in
+                <strong>જિલ્લા પંચાયત કલ્યાણ અધિકારી</strong>
+                <br />
+                <small>શ્રીમતી અનીતાબેન જોશી · સમગ્ર જિલ્લો</small>
+                <br />
+                <small style={{ color: "var(--blue)" }}>district.officer@gujarat.gov.in</small>
               </button>
             </div>
-            <small>
-              નાગરિક પાસવર્ડ: <strong>Citizen@123</strong>
-              <br />
-              અધિકારી પાસવર્ડ: <strong>Officer@123</strong>
+            <small style={{ color: "#475466" }}>
+              પાસવર્ડ: <strong>Officer@123</strong> (તમામ ડેમો અધિકારીઓ માટે)
             </small>
           </section>
         </div>
@@ -564,6 +691,10 @@ function Login() {
   );
 }
 
+/**
+ * Public Citizen Registration Component (/register)
+ * Strictly for citizens. No government account creation option exists.
+ */
 function Register() {
   const navigate = useNavigate();
   const [done, setDone] = useState("");
@@ -609,7 +740,8 @@ function Register() {
             <p>તમારી પરિવાર ઓળખ સંખ્યા (Family ID):</p>
             <strong className="generatedId">{done}</strong>
             <p className="muted" style={{ marginBottom: "24px" }}>
-              આ Family ID દ્વારા આપ સરકારી યોજનાઓ જોઈ શકશો અને અરજી કરી શકશો.
+              આ Family ID દ્વારા આપ આપના પરિવારની વિગતો ચકાસી શકશો, સભ્યો ઉમેરી શકશો અને સરકારી
+              યોજનાઓ માટે અરજી કરી શકશો.
             </p>
             <div className="actions">
               <button className="primary" onClick={() => navigate("/citizen")}>
@@ -631,12 +763,15 @@ function Register() {
       <Header />
       <main className="authPage container">
         <section className="formCard">
-          <div className="eyebrow">નાગરિક નોંધણી</div>
+          <div className="eyebrow">નાગરિક સેવા પોર્ટલ</div>
           <h1>નવો પરિવાર નોંધણી કરો</h1>
-          <p className="muted">આધાર નંબર જેવી સંવેદનશીલ માહિતી જરૂરી નથી. તમામ વિગતો ગોપનીય રહેશે.</p>
+          <p className="muted">
+            ગુજરાત સરકાર દ્વારા પારિવારિક ઓળખ માટે સત્તાવાર નોંધણી પત્રક. આધાર નંબર જેવી
+            સંવેદનશીલ માહિતી જરૂરી નથી.
+          </p>
           <form onSubmit={submit}>
             <div className="formSection">
-              <h2>ખાતાની માહિતી</h2>
+              <h2>નાગરિક ખાતાની માહિતી</h2>
               <div className="formGrid">
                 <Field label="પૂરું નામ" name="name" value={form.name} onChange={change} required />
                 <Field
@@ -672,7 +807,7 @@ function Register() {
             </div>
 
             <div className="formSection">
-              <h2>પરિવારની માહિતી</h2>
+              <h2>પરિવારની રહેઠાણ અને આર્થિક માહિતી</h2>
               <div className="formGrid">
                 <Field
                   label="પરિવારના મુખ્ય સભ્ય"
@@ -719,14 +854,14 @@ function Register() {
                   </select>
                 </label>
                 <Field
-                  label="સરનામું"
+                  label="સંપૂર્ણ સરનામું"
                   name="address"
                   value={form.address}
                   onChange={change}
                   required
                 />
                 <Field
-                  label="અન્ય સભ્યોના નામ (અલ્પવિરામથી)"
+                  label="અન્ય પરિવાર સભ્યો (અલ્પવિરામથી)"
                   name="members"
                   value={form.members}
                   onChange={change}
@@ -736,7 +871,7 @@ function Register() {
             </div>
             {error && <div className="error">{error}</div>}
             <button className="primary" type="submit">
-              પરિવાર નોંધણી પૂર્ણ કરો <ArrowRight size={16} />
+              પરિવાર નોંધણી પૂર્ણ કરો અને Family ID મેળવો <ArrowRight size={16} />
             </button>
           </form>
         </section>
@@ -748,7 +883,7 @@ function Register() {
 
 function Guard({ role, children }) {
   const user = getCurrentUser();
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to={role === "officer" ? "/officer/login" : "/login"} replace />;
   return user.role === role ? (
     children
   ) : (
@@ -757,20 +892,38 @@ function Guard({ role, children }) {
 }
 
 function Portal({ officer = false }) {
+  const user = getCurrentUser();
+
   return (
     <div className={`portal ${officer ? "officerPortal" : "citizenPortal"}`}>
       <Header officer={officer} />
       <div className="portalBody">
         <aside className="sidebar">
-          <div className="sideLabel">{officer ? "અધિકારી પોર્ટલ" : "નાગરિક પોર્ટલ"}</div>
+          <div className="sideLabel">
+            {officer ? (
+              <div>
+                <div>અધિકારી વહીવટી પોર્ટલ</div>
+                <div style={{ fontSize: "11px", color: "#cbd5e1", marginTop: "3px", fontWeight: "normal" }}>
+                  {user.designation || "સરકારી અધિકારી"}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div>નાગરિક સેવા પોર્ટલ</div>
+                <div style={{ fontSize: "11px", color: "#cbd5e1", marginTop: "3px", fontWeight: "normal" }}>
+                  Family ID: {user.familyId}
+                </div>
+              </div>
+            )}
+          </div>
           {(officer
             ? [
                 ["ડેશબોર્ડ", "/officer"],
-                ["પરિવાર શોધ", "/officer/families"],
-                ["ચકાસણી", "/officer/verification"],
-                ["અરજીઓ", "/officer/applications"],
-                ["પાત્ર પરિવાર", "/officer/eligible-families"],
-                ["પ્રોફાઇલ", "/officer/profile"]
+                ["પરિવાર શોધ (360°)", "/officer/families"],
+                ["ચકાસણી લિસ્ટ", "/officer/verification"],
+                ["અરજી વ્યવસ્થાપન", "/officer/applications"],
+                ["પાત્ર પરિવારો", "/officer/eligible-families"],
+                ["અધિકારી પ્રોફાઇલ", "/officer/profile"]
               ]
             : [
                 ["ડેશબોર્ડ", "/citizen"],
@@ -779,7 +932,7 @@ function Portal({ officer = false }) {
                 ["સરકારી યોજનાઓ", "/citizen/schemes"],
                 ["મારી અરજીઓ", "/citizen/applications"],
                 ["દસ્તાવેજો / ચકાસણી", "/citizen/verification"],
-                ["પ્રોફાઇલ", "/citizen/profile"]
+                ["નાગરિક પ્રોફાઇલ", "/citizen/profile"]
               ]
           ).map(([label, path]) => (
             <Link key={path} to={path}>
@@ -789,7 +942,7 @@ function Portal({ officer = false }) {
           <button
             onClick={() => {
               logoutUser();
-              window.location.href = "/";
+              window.location.href = officer ? "/officer/login" : "/";
             }}
           >
             <LogOut size={16} /> બહાર નીકળો
@@ -810,7 +963,7 @@ function CitizenRoutes() {
       <Route path="schemes" element={<SchemesPage />} />
       <Route path="applications" element={<ApplicationsPage />} />
       <Route path="verification" element={<CitizenVerificationPage />} />
-      <Route path="profile" element={<ProfilePage />} />
+      <Route path="profile" element={<CitizenProfilePage />} />
     </Routes>
   );
 }
@@ -824,7 +977,7 @@ function OfficerRoutes() {
       <Route path="verification" element={<OfficerFamilies pendingOnly />} />
       <Route path="applications" element={<OfficerApplications />} />
       <Route path="eligible-families" element={<EligibleFamilies />} />
-      <Route path="profile" element={<ProfilePage />} />
+      <Route path="profile" element={<OfficerProfilePage />} />
     </Routes>
   );
 }
@@ -846,7 +999,7 @@ function Page({ title, intro, children }) {
 
 function Info({ label, value }) {
   return (
-    <div>
+    <div className="profileItem">
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
@@ -866,7 +1019,7 @@ function CitizenDashboard() {
       <div className="identitybox">
         <Info label="પરિવાર ઓળખ સંખ્યા" value={family.id} />
         <Info label="ચકાસણી" value={<Status value={family.verified ? "verified" : "pending"} />} />
-        <Info label="સભ્યોની સંખ્યા" value={family.members.length} />
+        <Info label="સભ્યોની સંખ્યા" value={`${family.members.length} સભ્યો`} />
         <Info label="મુખ્ય સભ્ય" value={family.head} />
       </div>
       <div className="portalGrid">
@@ -1164,7 +1317,6 @@ function SchemesPage() {
   const openApplyModal = scheme => {
     setSelectedScheme(scheme);
     setApplicantMember(family.head);
-    // Initialize required docs
     const initDocs = {};
     scheme.docs.forEach(doc => {
       initDocs[doc] = { status: "ચકાસાયેલ", fileName: `${doc.replace(/\s+/g, "_")}.pdf` };
@@ -1491,31 +1643,264 @@ function ApplicationsPage() {
   );
 }
 
-function ProfilePage() {
+/**
+ * Dedicated Citizen Profile Page (/citizen/profile)
+ * Contains personal info, Family ID, family info, verification status, active applications, documents, and history.
+ */
+function CitizenProfilePage() {
   const user = getCurrentUser();
+  const family = getFamilyById(user.familyId);
+  const apps = getApplicationsByFamilyId(user.familyId);
+
   return (
-    <Page title="પ્રોફાઇલ" intro="તમારા ખાતાની અધિકૃત માહિતી.">
-      <section className="panel profile">
-        <Info label="નામ" value={user.name} />
-        <Info label="મોબાઇલ" value={user.mobile || "-"} />
-        <Info label="ઈમેલ" value={user.email || "-"} />
-        <Info label="હોદ્દો / ભૂમિકા" value={user.role === "officer" ? "સરકારી અધિકારી" : "નાગરિક"} />
-        <Info label="Family ID" value={user.familyId || "અધિકારી પોર્ટલ"} />
-        <Info label="ખાતા પ્રકાર" value="સત્તાવાર ડેમો સત્ર" />
-      </section>
+    <Page title="નાગરિક પ્રોફાઇલ" intro="તમારી વ્યક્તિગત અને પારિવારિક ઓળખની સત્તાવાર માહિતી.">
+      {/* 1. Personal & Contact Information */}
+      <div className="profileSection">
+        <div className="profileSectionHead">
+          <h2>વ્યક્તિગત અને સંપર્ક માહિતી</h2>
+          <span className="status verified">
+            <User size={14} /> નાગરિક ખાતું
+          </span>
+        </div>
+        <div className="profileBody">
+          <div className="profileGrid">
+            <Info label="પૂરું નામ" value={user.name} />
+            <Info label="મોબાઇલ નંબર" value={user.mobile || "-"} />
+            <Info label="ઈમેલ એડ્રેસ" value={user.email || "-"} />
+            <Info label="નોંધણી તારીખ" value={user.createdAt || "2026"} />
+            <Info label="ઓળખ પ્રમાણીકરણ" value="સત્તાવાર ડિજિટલ રેકોર્ડ" />
+            <Info label="ખાતા પ્રકાર" value="પરિવાર મુખ્ય / સભ્ય" />
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Family ID & Residence Information */}
+      {family && (
+        <div className="profileSection">
+          <div className="profileSectionHead">
+            <h2>પરિવાર ઓળખ (Family ID) વિગતો</h2>
+            <Status value={family.verified ? "verified" : "pending"} />
+          </div>
+          <div className="profileBody">
+            <div className="profileGrid">
+              <Info label="પરિવાર ઓળખ સંખ્યા" value={family.id} />
+              <Info label="પરિવારના મુખ્ય સભ્ય" value={family.head} />
+              <Info label="કુલ સભ્યોની સંખ્યા" value={`${family.members.length} સભ્યો`} />
+              <Info label="જિલ્લો" value={family.district} />
+              <Info label="તાલુકો" value={family.taluka || "ગાંધીનગર"} />
+              <Info label="ગામ / શહેર" value={family.village || "ગાંધીનગર"} />
+              <Info label="વાર્ષિક કૌટુંબિક આવક" value={`₹ ${money(family.income)}`} />
+              <Info label="રહેઠાણનો પ્રકાર" value={family.housing} />
+              <Info label="સરનામું" value={family.address} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Family Members Record */}
+      {family && (
+        <div className="profileSection">
+          <div className="profileSectionHead">
+            <h2>નોંધાયેલ પરિવાર સભ્યો ({family.members.length})</h2>
+            <Link className="secondary smallButton" to="/citizen/members">
+              સભ્યો વ્યવસ્થાપન
+            </Link>
+          </div>
+          <div className="tablewrap" style={{ border: 0 }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>સભ્યનું નામ</th>
+                  <th>સંબંધ</th>
+                  <th>ઉંમર</th>
+                  <th>લિંગ</th>
+                  <th>ચકાસણી સ્થિતિ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {family.members.map(m => (
+                  <tr key={m.id}>
+                    <td>
+                      <strong>{m.name}</strong>
+                    </td>
+                    <td>{m.relation}</td>
+                    <td>{m.age} વર્ષ</td>
+                    <td>{m.gender || "-"}</td>
+                    <td>
+                      <Status value={m.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Active Applications & Service History */}
+      <div className="profileSection">
+        <div className="profileSectionHead">
+          <h2>સરકારી સેવાઓ અને અરજી ઇતિહાસ ({apps.length})</h2>
+          <Link className="secondary smallButton" to="/citizen/applications">
+            તમામ અરજીઓ જુઓ
+          </Link>
+        </div>
+        {apps.length ? (
+          <div className="tablewrap" style={{ border: 0 }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>અરજી ID</th>
+                  <th>યોજનાનું નામ</th>
+                  <th>અરજદાર</th>
+                  <th>સબમિટ તારીખ</th>
+                  <th>સ્થિતિ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {apps.map(a => (
+                  <tr key={a.id}>
+                    <td>
+                      <strong>{a.id}</strong>
+                    </td>
+                    <td>{schemes.find(s => s.id === a.schemeId)?.name || a.schemeId}</td>
+                    <td>{a.applicant}</td>
+                    <td>{a.submitted}</td>
+                    <td>
+                      <Status value={a.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="profileBody">
+            <p className="muted">હજુ સુધી કોઈ યોજના માટે અરજી કરેલ નથી.</p>
+          </div>
+        )}
+      </div>
+    </Page>
+  );
+}
+
+/**
+ * Dedicated Government Officer Profile Page (/officer/profile)
+ * Contains official ID, name, email, department, designation, office location, jurisdiction, and assigned permissions.
+ * Never exposes citizen info.
+ */
+function OfficerProfilePage() {
+  const user = getCurrentUser();
+
+  return (
+    <Page title="સરકારી અધિકારી પ્રોફાઇલ" intro="અધિકૃત વહીવટી ઓળખ, હોદ્દો, અધિકારક્ષેત્ર અને સોંપાયેલ પરવાનગીઓ.">
+      {/* 1. Official Credentials */}
+      <div className="profileSection" style={{ borderTop: "4px solid var(--navy)" }}>
+        <div className="profileSectionHead">
+          <h2>અધિકૃત સરકારી ઓળખ (Official Credentials)</h2>
+          <span className="status verified">
+            <ShieldCheck size={14} /> વહીવટી ખાતું સક્રિય
+          </span>
+        </div>
+        <div className="profileBody">
+          <div className="profileGrid">
+            <Info label="અધિકારીનું નામ" value={user.name} />
+            <Info label="સત્તાવાર સરકારી ID" value={user.officerId || "OFF-GJ-GNR-0101"} />
+            <Info label="સત્તાવાર ઈમેલ" value={user.email} />
+            <Info label="સત્તાવાર મોબાઇલ" value={user.mobile || "9426001122"} />
+            <Info label="વહીવટી હોદ્દો (Designation)" value={user.designation || "તાલુકા ચકાસણી અધિકારી"} />
+            <Info label="સરકારી વિભાગ (Department)" value={user.department || "મહેસૂલ અને સામાજિક ન્યાય વિભાગ"} />
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Office & Jurisdiction */}
+      <div className="profileSection">
+        <div className="profileSectionHead">
+          <h2>કચેરી સ્થળ અને વહીવટી અધિકારક્ષેત્ર (Jurisdiction)</h2>
+          <span className="jurisdictionBadge" style={{ color: "var(--navy)", background: "#edf2f7", borderColor: "#cbd5e1" }}>
+            <MapPin size={14} /> અધિકૃત ક્ષેત્ર
+          </span>
+        </div>
+        <div className="profileBody">
+          <div className="profileGrid">
+            <Info label="સત્તાવાર કચેરી" value={user.office || "તાલુકા સેવા સદન, ગાંધીનગર"} />
+            <Info label="વહીવટી જિલ્લો" value={user.jurisdiction?.district || "ગાંધીનગર"} />
+            <Info label="વહીવટી તાલુકો / વિસ્તાર" value={user.jurisdiction?.taluka || "ગાંધીનગર"} />
+            <Info label="અધિકાર સ્તર (Authority Level)" value={user.officerRole === "district_officer" ? "જિલ્લા સ્તરીય મંજૂરકર્તા" : "તાલુકા સ્તરીય ચકાસણીકર્તા"} />
+            <Info label="પોસ્ટિંગ તારીખ" value={user.createdAt || "1 જાન્યુઆરી 2026"} />
+            <Info label="સેવા સંવર્ગ" value="ગુજરાત વહીવટી સેવા (GAS/Cadre)" />
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Roles & System Permissions */}
+      <div className="profileSection">
+        <div className="profileSectionHead">
+          <h2>સિસ્ટમ પરવાનગીઓ અને વિશેષાધિકારો (Role & Permissions)</h2>
+          <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+            ભૂમિકા: <strong>{user.officerRole || "verification_officer"}</strong>
+          </span>
+        </div>
+        <div className="profileBody">
+          <p style={{ margin: "0 0 12px 0", fontSize: "13px", color: "#475466" }}>
+            આ વહીવટી ખાતાને પોર્ટલ પર નીચે મુજબની કામગીરી કરવાની કાયદેસર સત્તા આપવામાં આવી છે:
+          </p>
+          <div className="permissionsGrid">
+            {(user.permissions || [
+              "verify_family",
+              "review_application",
+              "request_info",
+              "view_families"
+            ]).map(perm => (
+              <div className="permissionBadge" key={perm}>
+                <Key size={14} />
+                <span>{permissionLabels[perm] || perm}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="govAuthNotice">
+            <Lock size={18} style={{ flexShrink: 0, marginTop: "2px" }} />
+            <div>
+              <strong>સુરક્ષા અને ઓડિટ નીતિ:</strong>
+              <p style={{ margin: "2px 0 0 0" }}>
+                આ એક અધિકૃત સરકારી વહીવટી ખાતું છે. તમારા દ્વારા લેવામાં આવતી તમામ ચકાસણી અને મંજૂરી
+                કાર્યવાહી ડિજિટલ ગુજરાત ઓડિટ લોગમાં સુરક્ષિત રીતે નોંધાય છે.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </Page>
   );
 }
 
 function OfficerDashboard() {
+  const user = getCurrentUser();
   const families = getFamilies();
   const apps = getApplications();
 
   return (
     <Page
       title="વહીવટી ડેશબોર્ડ"
-      intro="પરિવાર ઓળખ, ચકાસણી અને અરજીઓનું સંચાલન."
+      intro="પરિવાર ઓળખ, ચકાસણી અને સરકારી યોજના અરજીઓનું સત્તાવાર સંચાલન."
     >
+      {/* Official Jurisdiction Banner */}
+      <div className="jurisdictionBanner">
+        <div>
+          <div className="jurisdictionTitle">
+            {user.name} · {user.designation}
+          </div>
+          <div className="jurisdictionSub">
+            વિભાગ: {user.department} · કચેરી: {user.office}
+          </div>
+        </div>
+        <div className="jurisdictionBadge">
+          <MapPin size={14} /> વહીવટી ક્ષેત્ર: {getOfficerJurisdiction(user)}
+        </div>
+      </div>
+
       <div className="metricgrid">
         <Metric label="કુલ પરિવાર" value={families.length} icon={<Users />} />
         <Metric
@@ -1528,9 +1913,9 @@ function OfficerDashboard() {
           value={families.filter(f => !f.verified).length}
           icon={<Search />}
         />
-        <Metric label="અરજીઓ" value={apps.length} icon={<FileText />} />
+        <Metric label="કુલ અરજીઓ" value={apps.length} icon={<FileText />} />
         <Metric
-          label="મંજૂર"
+          label="મંજૂર અરજીઓ"
           value={apps.filter(a => a.status === "approved").length}
           icon={<CheckCircle2 />}
         />
@@ -1541,7 +1926,7 @@ function OfficerDashboard() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
             <h2>તાજેતરની અરજીઓ</h2>
             <Link className="secondary smallButton" to="/officer/applications">
-              બધી અરજીઓ
+              બધી અરજીઓ જુઓ
             </Link>
           </div>
           {apps.slice(-5).reverse().map(a => (
@@ -1550,7 +1935,7 @@ function OfficerDashboard() {
                 <Link to="/officer/applications" style={{ color: "var(--navy)", fontWeight: 700 }}>
                   {a.id}
                 </Link>
-                <span>Family ID: {a.familyId}</span>
+                <span>Family ID: {a.familyId} · અરજદાર: {a.applicant}</span>
               </div>
               <Status value={a.status} />
             </div>
@@ -1787,11 +2172,12 @@ function OfficerFamily() {
 }
 
 function OfficerApplications() {
+  const user = getCurrentUser();
   const [, redraw] = useState(0);
   const [filter, setFilter] = useState("all");
   const [activeApp, setActiveApp] = useState(null);
   const [remarks, setRemarks] = useState("");
-  const [actionType, setActionType] = useState(""); // "reject" | "info"
+  const [actionType, setActionType] = useState("");
 
   const apps = getApplications().filter(a => filter === "all" || a.status === filter);
 
@@ -2065,7 +2451,11 @@ const englishCopy = {
   "સત્તાવાર ડિજિટલ સેવા": "Official digital service",
   "પરિવાર ઓળખ સંખ્યા": "Parivar ID",
   "પ્રવેશ કરો": "Login",
+  "નાગરિક પ્રવેશ": "Citizen Login",
+  "સરકારી અધિકારી પ્રવેશ": "Government Officer Login",
   "નોંધણી કરો": "Register",
+  "પરિવાર નોંધણી કરો": "Register Family",
+  "નવો પરિવાર નોંધણી કરો": "Register New Family",
   "હોમ": "Home",
   "કેવી રીતે કાર્ય કરે છે": "How it Works",
   "યોજનાઓ": "Schemes",
@@ -2083,15 +2473,21 @@ const englishCopy = {
   "મારી અરજીઓ": "My Applications",
   "દસ્તાવેજો / ચકાસણી": "Verification & Docs",
   "પ્રોફાઇલ": "Profile",
+  "નાગરિક પ્રોફાઇલ": "Citizen Profile",
+  "સરકારી અધિકારી પ્રોફાઇલ": "Government Officer Profile",
+  "અધિકારી પ્રોફાઇલ": "Officer Profile",
   "બહાર નીકળો": "Logout",
   "પરિવાર શોધ": "Find Families",
+  "પરિવાર શોધ (360°)": "Family 360° Search",
   "ચકાસણી": "Verification",
+  "ચકાસણી લિસ્ટ": "Verification List",
   "અરજીઓ": "Applications",
+  "અરજી વ્યવસ્થાપન": "Application Management",
   "પાત્ર પરિવાર": "Eligible Families",
+  "પાત્ર પરિવારો": "Eligible Families",
   "ગુજરાત સરકારની ડિજિટલ સેવા": "Government of Gujarat digital service",
   "ગુજરાતના પરિવારો માટે એકીકૃત ડિજિટલ ઓળખ અને સરકારી સેવાઓ સુધી સરળ પહોંચ.":
     "A unified digital identity and easier access to government services for Gujarat families.",
-  "નવો પરિવાર નોંધણી કરો": "Register a new family",
   "વિશ્વસનીય પરિવાર રેકોર્ડ": "Trusted family record",
   "નોંધણી પછી મળતી પરિવાર ઓળખ સંખ્યા": "Family ID issued after registration",
   "સરળ પ્રક્રિયા": "Simple process",
@@ -2123,10 +2519,8 @@ const englishCopy = {
   "ઈમેલ સહાયતા": "Email Support",
   "સ્થાનિક સેવા કેન્દ્ર": "Local Service Center",
   "સુરક્ષિત સેવા": "Secure service",
+  "સુરક્ષિત નાગરિક પોર્ટલ": "Secure Citizen Portal",
   "સુરક્ષિત ઓળખ પોર્ટલ": "Secure identity portal",
-  "નાગરિક પ્રવેશ": "Citizen Login",
-  "સરકારી અધિકારી પ્રવેશ": "Government Officer Login",
-  "અધિકારી પ્રવેશ": "Officer Login",
   "નાગરિક નોંધણી": "Citizen Registration",
   "ખાતાની માહિતી": "Account information",
   "પૂરું નામ": "Full name",
@@ -2170,7 +2564,13 @@ const englishCopy = {
   "પાત્ર પરંતુ લાભ ન મેળવનાર પરિવારો": "Eligible but unserved families",
   "વહીવટી ડેશબોર્ડ": "Administrative Dashboard",
   "પરિવાર 360° સત્તાવાર રેકોર્ડ": "Official Family 360° Record",
-  "અરજી વ્યવસ્થાપન": "Application Management"
+  "વ્યક્તિગત અને સંપર્ક માહિતી": "Personal & Contact Information",
+  "પરિવાર ઓળખ (Family ID) વિગતો": "Family ID Details",
+  "નોંધાયેલ પરિવાર સભ્યો": "Registered Family Members",
+  "સરકારી સેવાઓ અને અરજી ઇતિહાસ": "Government Services & Application History",
+  "અધિકૃત સરકારી ઓળખ (Official Credentials)": "Official Government Credentials",
+  "કચેરી સ્થળ અને વહીવટી અધિકારક્ષેત્ર (Jurisdiction)": "Office Location & Jurisdiction",
+  "સિસ્ટમ પરવાનગીઓ અને વિશેષાધિકારો (Role & Permissions)": "System Permissions & Roles"
 };
 
 function LanguageControl() {
@@ -2252,10 +2652,14 @@ function App() {
       <LanguageControl />
       <Routes>
         <Route path="/" element={<PublicHome />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/officer/login" element={<Login />} />
+        {/* Dedicated Citizen Login */}
+        <Route path="/login" element={<CitizenLogin />} />
+        {/* Dedicated Government Officer Login */}
+        <Route path="/officer/login" element={<OfficerLogin />} />
+        {/* Strictly Citizen Registration */}
         <Route path="/register" element={<Register />} />
         <Route path="/logout" element={<Logout />} />
+        {/* Citizen Protected Portal */}
         <Route
           path="/citizen/*"
           element={
@@ -2264,6 +2668,7 @@ function App() {
             </Guard>
           }
         />
+        {/* Government Officer Protected Portal */}
         <Route
           path="/officer/*"
           element={

@@ -96,33 +96,185 @@ export const getFamilies = () => JSON.parse(localStorage.getItem("pravi-families
 export const getApplications = () => JSON.parse(localStorage.getItem("pravi-applications") || "null") || seedApplications;
 export const getCurrentUser = () => JSON.parse(localStorage.getItem("currentUser") || "null");
 export const getFamilyById = id => getFamilies().find(family => family.id === id);
-const demoUsers = [
-  { id: "citizen-demo", name: "રાકેશભાઈ પટેલ", mobile: "9876543210", email: "", password: "Citizen@123", role: "citizen", familyId: "GJ-2026-00124" },
-  { id: "officer-demo", name: "અધિકારી મહોદય", email: "officer@gujarat.gov.in", password: "Officer@123", role: "officer", department: "ગુજરાત સરકાર" }
+
+export const demoUsers = [
+  {
+    id: "citizen-demo",
+    name: "રાકેશભાઈ પટેલ",
+    mobile: "9876543210",
+    email: "rakesh.patel@demo.com",
+    password: "Citizen@123",
+    role: "citizen",
+    familyId: "GJ-2026-00124",
+    createdAt: "15 જાન્યુઆરી 2026"
+  },
+  {
+    id: "officer-taluka-demo",
+    officerId: "OFF-GJ-GNR-0101",
+    name: "શ્રી વિજયકુમાર પંડ્યા",
+    email: "officer@gujarat.gov.in",
+    mobile: "9426001122",
+    password: "Officer@123",
+    role: "officer",
+    officerRole: "verification_officer",
+    department: "મહેસૂલ અને સામાજિક ન્યાય વિભાગ",
+    designation: "તાલુકા ચકાસણી અધિકારી (Verification Officer)",
+    office: "તાલુકા સેવા સદન, ગાંધીનગર",
+    jurisdiction: {
+      district: "ગાંધીનગર",
+      taluka: "ગાંધીનગર"
+    },
+    permissions: ["verify_family", "review_application", "request_info", "view_families", "view_eligible_unserved"],
+    createdAt: "1 જાન્યુઆરી 2026"
+  },
+  {
+    id: "officer-district-demo",
+    officerId: "OFF-GJ-GNR-0001",
+    name: "શ્રીમતી અનીતાબેન જોશી",
+    email: "district.officer@gujarat.gov.in",
+    mobile: "9426003344",
+    password: "Officer@123",
+    role: "officer",
+    officerRole: "district_officer",
+    department: "પંચાયત અને ગ્રામ વિકાસ વિભાગ",
+    designation: "જિલ્લા પંચાયત કલ્યાણ અધિકારી (District Officer)",
+    office: "જિલ્લા સેવા સદન, ગાંધીનગર",
+    jurisdiction: {
+      district: "ગાંધીનગર",
+      taluka: "સમગ્ર જિલ્લો"
+    },
+    permissions: ["verify_family", "review_application", "approve_application", "reject_application", "request_info", "view_reports", "view_families", "view_eligible_unserved"],
+    createdAt: "1 જાન્યુઆરી 2026"
+  }
 ];
+
 export function initializeDemoData() {
   if (!localStorage.getItem("pravi-families")) localStorage.setItem("pravi-families", JSON.stringify(initialFamilies));
   if (!localStorage.getItem("pravi-applications")) localStorage.setItem("pravi-applications", JSON.stringify(seedApplications));
-  if (!localStorage.getItem("pravi-users")) localStorage.setItem("pravi-users", JSON.stringify(demoUsers));
+  
+  // Ensure demo users have full structured officer attributes
+  const existingUsers = JSON.parse(localStorage.getItem("pravi-users") || "null");
+  if (!existingUsers || !existingUsers.some(u => u.officerId)) {
+    localStorage.setItem("pravi-users", JSON.stringify(demoUsers));
+  }
 }
-export function getUserByIdentifier(identifier) { return JSON.parse(localStorage.getItem("pravi-users") || "[]").find(user => user.mobile === identifier || user.email === identifier); }
-export function loginUser(identifier, password) {
+
+export function getUserByIdentifier(identifier) {
+  const users = JSON.parse(localStorage.getItem("pravi-users") || "[]");
+  return users.find(user => user.mobile === identifier || user.email === identifier);
+}
+
+export function loginUser(identifier, password, expectedRole = null) {
   const user = getUserByIdentifier(identifier);
-  if (!user || user.password !== password) return null;
-  const session = { id: user.id, name: user.name, email: user.email, mobile: user.mobile, role: user.role, familyId: user.familyId };
+  if (!user || user.password !== password) {
+    return { error: "પ્રવેશ વિગતો ખોટી છે. કૃપા કરીને તપાસો." };
+  }
+
+  if (expectedRole && user.role !== expectedRole) {
+    if (expectedRole === "citizen" && user.role === "officer") {
+      return {
+        error: "આ ખાતું સરકારી અધિકારી ખાતું છે. કૃપા કરીને સત્તાવાર અધિકારી પોર્ટલ /officer/login દ્વારા પ્રવેશ કરો.",
+        code: "OFFICER_IN_CITIZEN_PORTAL"
+      };
+    }
+    if (expectedRole === "officer" && user.role === "citizen") {
+      return {
+        error: "આ પોર્ટલ માત્ર સત્તાવાર સરકારી કર્મચારીઓ માટે છે. નાગરિક પ્રવેશ માટે /login નો ઉપયોગ કરો.",
+        code: "CITIZEN_IN_OFFICER_PORTAL"
+      };
+    }
+  }
+
+  const session = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    mobile: user.mobile,
+    role: user.role,
+    familyId: user.familyId || "",
+    officerId: user.officerId || "",
+    officerRole: user.officerRole || "",
+    department: user.department || "",
+    designation: user.designation || "",
+    office: user.office || "",
+    jurisdiction: user.jurisdiction || null,
+    permissions: user.permissions || [],
+    createdAt: user.createdAt || new Date().toLocaleDateString("gu-IN")
+  };
+
   localStorage.setItem("currentUser", JSON.stringify(session));
   return session;
 }
-export function logoutUser() { localStorage.removeItem("currentUser"); }
+
+export function hasPermission(user, perm) {
+  if (!user || user.role !== "officer") return false;
+  return Array.isArray(user.permissions) && user.permissions.includes(perm);
+}
+
+export function getOfficerJurisdiction(user) {
+  if (!user || !user.jurisdiction) return "ગાંધીનગર જિલ્લો";
+  return `${user.jurisdiction.district} (${user.jurisdiction.taluka})`;
+}
+
+export function logoutUser() {
+  localStorage.removeItem("currentUser");
+}
+
 export function registerUser(form) {
   const users = JSON.parse(localStorage.getItem("pravi-users") || "[]");
-  if (users.some(user => user.mobile === form.mobile || (form.email && user.email === form.email))) throw new Error("આ મોબાઇલ અથવા ઈમેલથી ખાતું પહેલેથી છે.");
+  if (users.some(user => user.mobile === form.mobile || (form.email && user.email === form.email))) {
+    throw new Error("આ મોબાઇલ અથવા ઈમેલથી ખાતું પહેલેથી છે.");
+  }
   const familyId = `GJ-2026-${String(Date.now()).slice(-5)}`;
-  const family = { id: familyId, head: form.head || form.name, address: form.address, district: form.district, taluka: form.taluka, village: form.village, income: Number(form.income) || 0, housing: form.housing, verified: false, members: [{ id: `${familyId}-001`, name: form.head || form.name, age: 35, relation: "પરિવારના મુખ્ય સભ્ય", gender: "-", status: "pending" }, ...(form.members || "").split(",").map((name, index) => name.trim() ? ({ id: `${familyId}-${String(index + 2).padStart(3, "0")}`, name: name.trim(), age: 18, relation: "પરિવારના સભ્ય", gender: "-", status: "pending" }) : null).filter(Boolean)] };
-  const user = { id: `citizen-${Date.now()}`, name: form.name, mobile: form.mobile, email: form.email, password: form.password, role: "citizen", familyId };
+  const family = {
+    id: familyId,
+    head: form.head || form.name,
+    address: form.address,
+    district: form.district,
+    taluka: form.taluka,
+    village: form.village,
+    income: Number(form.income) || 0,
+    housing: form.housing,
+    verified: false,
+    members: [
+      {
+        id: `${familyId}-001`,
+        name: form.head || form.name,
+        age: 35,
+        relation: "પરિવારના મુખ્ય સભ્ય",
+        gender: "પુરુષ",
+        status: "pending"
+      },
+      ...(form.members || "")
+        .split(",")
+        .map((name, index) =>
+          name.trim()
+            ? {
+                id: `${familyId}-${String(index + 2).padStart(3, "0")}`,
+                name: name.trim(),
+                age: 18,
+                relation: "પરિવારના સભ્ય",
+                gender: "-",
+                status: "pending"
+              }
+            : null
+        )
+        .filter(Boolean)
+    ]
+  };
+  const user = {
+    id: `citizen-${Date.now()}`,
+    name: form.name,
+    mobile: form.mobile,
+    email: form.email,
+    password: form.password,
+    role: "citizen",
+    familyId,
+    createdAt: new Date().toLocaleDateString("gu-IN")
+  };
   localStorage.setItem("pravi-users", JSON.stringify([...users, user]));
   localStorage.setItem("pravi-families", JSON.stringify([...getFamilies(), family]));
-  loginUser(form.mobile, form.password);
+  loginUser(form.mobile, form.password, "citizen");
   return { familyId };
 }
 export const getApplicationsByFamilyId = familyId => getApplications().filter(a => a.familyId === familyId);
