@@ -125,18 +125,85 @@ export function registerUser(form) {
   loginUser(form.mobile, form.password);
   return { familyId };
 }
-export function createApplication({ familyId, schemeId, applicant, documents = [] }) {
-  const apps = getApplications(); const id = `APP-2026-${String(Date.now()).slice(-5)}`; const date = new Date().toLocaleDateString("gu-IN");
-  const application = { id, familyId, schemeId, applicant, documents, status: "submitted", submitted: date, updated: date, history: [{ status: "submitted", date }] };
-  localStorage.setItem("pravi-applications", JSON.stringify([...apps, application])); refreshStorage(); return application;
-}
-export function updateApplicationStatus(id, status) {
+export const getApplicationsByFamilyId = familyId => getApplications().filter(a => a.familyId === familyId);
+
+export function createApplication({ familyId, schemeId, applicant, memberId = "", documents = [], declaration = true }) {
+  const apps = getApplications();
+  const id = `APP-2026-${String(Date.now()).slice(-5)}`;
   const date = new Date().toLocaleDateString("gu-IN");
-  const apps = getApplications().map(app => app.id === id ? { ...app, status, updated: date, history: [...(app.history || []), { status, date }] } : app);
-  localStorage.setItem("pravi-applications", JSON.stringify(apps)); refreshStorage();
+  const application = {
+    id,
+    familyId,
+    schemeId,
+    applicant,
+    memberId,
+    documents: documents.length > 0 ? documents : [
+      { name: "ઓળખ પુરાવો", status: "ચકાસાયેલ", fileName: "identity_proof.pdf" },
+      { name: "આવક પ્રમાણપત્ર", status: "ચકાસાયેલ", fileName: "income_cert.pdf" },
+      { name: "રહેઠાણ પુરાવો", status: "ચકાસાયેલ", fileName: "address_proof.pdf" }
+    ],
+    declaration: !!declaration,
+    status: "submitted",
+    submitted: date,
+    updated: date,
+    history: [{ status: "submitted", date, remarks: "અરજી સફળતાપૂર્વક સબમિટ થઈ." }]
+  };
+  localStorage.setItem("pravi-applications", JSON.stringify([...apps, application]));
+  refreshStorage();
+  return application;
 }
+
+export function updateApplicationStatus(id, status, remarks = "") {
+  const date = new Date().toLocaleDateString("gu-IN");
+  const defaultRemarks = {
+    under_review: "દસ્તાવેજ ચકાસણી અને અધિકારી સમીક્ષા હેઠળ.",
+    approved: "અરજી પાત્ર જણાયેલ છે અને મંજૂર કરવામાં આવી છે.",
+    rejected: "અરજી માપદંડ પૂર્ણ ન કરવાને કારણે નામંજૂર કરવામાં આવી છે.",
+    pending: "અરજી માટે વધારાની માહિતી અથવા પુરાવા જરૂરી છે."
+  };
+  const note = remarks || defaultRemarks[status] || "સ્થિતિ અપડેટ કરવામાં આવી.";
+  const apps = getApplications().map(app =>
+    app.id === id
+      ? {
+          ...app,
+          status,
+          updated: date,
+          remarks: note,
+          history: [...(app.history || []), { status, date, remarks: note }]
+        }
+      : app
+  );
+  localStorage.setItem("pravi-applications", JSON.stringify(apps));
+  refreshStorage();
+}
+
+export function addFamilyMember(familyId, member) {
+  const families = getFamilies();
+  const family = families.find(f => f.id === familyId);
+  if (!family) throw new Error("પરિવાર મળ્યો નથી.");
+  const memberId = `${familyId}-${String(Date.now()).slice(-3)}`;
+  const newMember = {
+    id: memberId,
+    name: member.name,
+    relation: member.relation || "પરિવારના સભ્ય",
+    age: Number(member.age) || 18,
+    gender: member.gender || "પુરુષ",
+    status: "pending"
+  };
+  const updatedFamilies = families.map(f =>
+    f.id === familyId ? { ...f, members: [...f.members, newMember] } : f
+  );
+  localStorage.setItem("pravi-families", JSON.stringify(updatedFamilies));
+  refreshStorage();
+  return newMember;
+}
+
 export function updateFamilyVerification(id, status) {
   const families = getFamilies().map(family => family.id === id ? { ...family, verified: status === "verified", verificationStatus: status, members: family.members.map(member => ({ ...member, status: status === "verified" ? "verified" : member.status })) } : family);
-  localStorage.setItem("pravi-families", JSON.stringify(families)); refreshStorage();
+  localStorage.setItem("pravi-families", JSON.stringify(families));
+  refreshStorage();
 }
-function refreshStorage() { window.dispatchEvent(new Event("pravi-data")); }
+
+function refreshStorage() {
+  window.dispatchEvent(new Event("pravi-data"));
+}
