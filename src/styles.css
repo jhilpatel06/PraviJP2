@@ -57,22 +57,21 @@ a { text-decoration: none; color: inherit; }
 
 /* Indian National Emblem Container in Header */
 .emblemWrap {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: #ffffff;
-  border: 2px solid #e2e8f0;
-  box-shadow: 0 2px 8px rgba(12, 35, 64, 0.1);
+  height: 54px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.emblemWrap:hover {
+.nationalEmblemImg {
+  display: block;
+  max-height: 100%;
+  width: auto;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+.brand:hover .nationalEmblemImg {
   transform: scale(1.05);
-  border-color: var(--orange);
-  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.2);
 }
 
 .brandtitle { font-size: 21px; font-weight: 800; color: var(--navy); line-height: 1.2; }

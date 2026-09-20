@@ -156,7 +156,7 @@ function Header({ officer = false }) {
         <div className="container brandinner">
           <Link className="brand" to={officer ? "/officer" : user ? "/citizen" : "/"}>
             <div className="emblemWrap" title="ભારત સરકાર / ગુજરાત સરકાર રાષ્ટ્રીય પ્રતીક (State Emblem of India)">
-              <NationalEmblem size={38} />
+              <NationalEmblem size={52} />
             </div>
             <div>
               <div className="brandtitle">પરિવાર ઓળખ સંખ્યા</div>
