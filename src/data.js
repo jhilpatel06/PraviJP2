@@ -351,11 +351,153 @@ export function addFamilyMember(familyId, member) {
 }
 
 export function updateFamilyVerification(id, status) {
-  const families = getFamilies().map(family => family.id === id ? { ...family, verified: status === "verified", verificationStatus: status, members: family.members.map(member => ({ ...member, status: status === "verified" ? "verified" : member.status })) } : family);
+  const families = getFamilies().map(family =>
+    family.id === id
+      ? {
+          ...family,
+          verified: status === "verified",
+          verificationStatus: status,
+          members: family.members.map(member => ({
+            ...member,
+            status: status === "verified" ? "verified" : member.status
+          }))
+        }
+      : family
+  );
   localStorage.setItem("pravi-families", JSON.stringify(families));
   refreshStorage();
 }
 
-function refreshStorage() {
+export function verifyFamilyMember(familyId, memberId, status = "verified") {
+  const families = getFamilies().map(family => {
+    if (family.id !== familyId) return family;
+    const updatedMembers = family.members.map(m =>
+      m.id === memberId ? { ...m, status } : m
+    );
+    // If all members are verified and family wasn't, can keep family verified
+    return { ...family, members: updatedMembers };
+  });
+  localStorage.setItem("pravi-families", JSON.stringify(families));
+  refreshStorage();
+}
+
+export function deleteFamilyMember(familyId, memberId) {
+  const families = getFamilies().map(family => {
+    if (family.id !== familyId) return family;
+    return {
+      ...family,
+      members: family.members.filter(m => m.id !== memberId)
+    };
+  });
+  localStorage.setItem("pravi-families", JSON.stringify(families));
+  refreshStorage();
+}
+
+export function updateFamilyMember(familyId, memberId, updatedData) {
+  const families = getFamilies().map(family => {
+    if (family.id !== familyId) return family;
+    return {
+      ...family,
+      members: family.members.map(m =>
+        m.id === memberId ? { ...m, ...updatedData } : m
+      )
+    };
+  });
+  localStorage.setItem("pravi-families", JSON.stringify(families));
+  refreshStorage();
+}
+
+export function verifyFamilyKyc(familyId, kycDetails = {}) {
+  const date = new Date().toLocaleDateString("gu-IN");
+  const families = getFamilies().map(family => {
+    if (family.id !== familyId) return family;
+    return {
+      ...family,
+      verified: true,
+      verificationStatus: "verified",
+      kycVerified: true,
+      kycDate: date,
+      aadhaarMasked: kycDetails.aadhaarMasked || "XXXX-XXXX-4892",
+      members: family.members.map(m => ({ ...m, status: "verified" })),
+      verificationNotes: "UIDAI e-KYC ઓનલાઇન OTP દ્વારા પ્રમાણિત"
+    };
+  });
+  localStorage.setItem("pravi-families", JSON.stringify(families));
+
+  // If current logged-in user belongs to this family, update user session
+  const currentUser = getCurrentUser();
+  if (currentUser && currentUser.familyId === familyId) {
+    const updatedUser = {
+      ...currentUser,
+      isKycVerified: true,
+      kycDate: date
+    };
+    localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+  }
+
+  refreshStorage();
+}
+
+export function updateFamilyDetails(familyId, details) {
+  const families = getFamilies().map(family => {
+    if (family.id !== familyId) return family;
+    return {
+      ...family,
+      ...details,
+      income: details.income !== undefined ? Number(details.income) : family.income
+    };
+  });
+  localStorage.setItem("pravi-families", JSON.stringify(families));
+  refreshStorage();
+}
+
+export function updateUserProfile(userId, profileData) {
+  const users = JSON.parse(localStorage.getItem("pravi-users") || "[]");
+  const updatedUsers = users.map(u => (u.id === userId ? { ...u, ...profileData } : u));
+  localStorage.setItem("pravi-users", JSON.stringify(updatedUsers));
+
+  const currentUser = getCurrentUser();
+  if (currentUser && currentUser.id === userId) {
+    const newSession = { ...currentUser, ...profileData };
+    localStorage.setItem("currentUser", JSON.stringify(newSession));
+  }
+
+  // If head name or mobile changed, update corresponding family
+  if (currentUser?.familyId && (profileData.name || profileData.address)) {
+    const families = getFamilies().map(f => {
+      if (f.id !== currentUser.familyId) return f;
+      return {
+        ...f,
+        head: profileData.name || f.head,
+        address: profileData.address || f.address,
+        district: profileData.district || f.district
+      };
+    });
+    localStorage.setItem("pravi-families", JSON.stringify(families));
+  }
+
+  refreshStorage();
+}
+
+export function verifyDocument(familyId, docName, status = "ચકાસાયેલ") {
+  const families = getFamilies().map(f => {
+    if (f.id !== familyId) return f;
+    const documents = f.documents || [
+      { name: "રહેઠાણ પુરાવો", status: "બાકી" },
+      { name: "આવક પ્રમાણપત્ર રેકોર્ડ", status: "બાકી" },
+      { name: "પરિવાર સભ્ય ઓળખ", status: "બાકી" },
+      { name: "રેશન કાર્ડ / આધાર", status: "બાકી" }
+    ];
+    const updatedDocs = documents.map(d =>
+      d.name === docName ? { ...d, status, verifiedAt: new Date().toLocaleDateString("gu-IN") } : d
+    );
+    return { ...f, documents: updatedDocs };
+  });
+  localStorage.setItem("pravi-families", JSON.stringify(families));
+  refreshStorage();
+}
+
+export function refreshStorage() {
   window.dispatchEvent(new Event("pravi-data"));
+  window.dispatchEvent(new Event("storage"));
 }

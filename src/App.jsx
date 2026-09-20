@@ -5,10 +5,12 @@ import {
   ArrowRight,
   Award,
   Building,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock,
+  Edit3,
   FileCheck,
   FileText,
   Home,
@@ -18,10 +20,14 @@ import {
   MapPin,
   Menu,
   Plus,
+  Printer,
+  QrCode,
+  RefreshCw,
   Search,
   Shield,
   ShieldAlert,
   ShieldCheck,
+  Trash2,
   Upload,
   User,
   UserCheck,
@@ -32,6 +38,7 @@ import {
 import {
   addFamilyMember,
   createApplication,
+  deleteFamilyMember,
   demoUsers,
   getApplications,
   getApplicationsByFamilyId,
@@ -46,8 +53,31 @@ import {
   registerUser,
   schemes,
   updateApplicationStatus,
-  updateFamilyVerification
+  updateFamilyDetails,
+  updateFamilyMember,
+  updateFamilyVerification,
+  updateUserProfile,
+  verifyDocument,
+  verifyFamilyKyc,
+  verifyFamilyMember
 } from "./data";
+import { NationalEmblem } from "./components/NationalEmblem";
+import { GujaratMapBackdrop } from "./components/GujaratMapBackdrop";
+import { ParivarIdCard } from "./components/ParivarIdCard";
+
+export function usePraviData() {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const handler = () => setTick(t => t + 1);
+    window.addEventListener("pravi-data", handler);
+    window.addEventListener("storage", handler);
+    return () => {
+      window.removeEventListener("pravi-data", handler);
+      window.removeEventListener("storage", handler);
+    };
+  }, []);
+  return tick;
+}
 
 const statusNames = {
   verified: "ચકાસાયેલ",
@@ -115,24 +145,23 @@ function Header({ officer = false }) {
 
   return (
     <>
+      <div className="tricolorStrip" title="ભારત સરકાર · ગુજરાત સરકાર"></div>
       <div className="topline">
         <div className="container topinner">
-          <span>ગુજરાત સરકાર · ડિજિટલ સેવા પોર્ટલ</span>
+          <span>ગુજરાત સરકાર · ડિજિટલ સેવા પોર્ટલ (Government of Gujarat)</span>
           <span>{officer ? "અધિકૃત સરકારી કર્મચારી પ્રવેશ ક્ષેત્ર" : "સત્તાવાર નાગરિક સેવા"}</span>
         </div>
       </div>
       <header className="brandbar">
         <div className="container brandinner">
           <Link className="brand" to={officer ? "/officer" : user ? "/citizen" : "/"}>
-            <div className="emblem">
-              ગુજરાત
-              <br />
-              <small>સરકાર</small>
+            <div className="emblemWrap" title="ભારત સરકાર / ગુજરાત સરકાર રાષ્ટ્રીય પ્રતીક (State Emblem of India)">
+              <NationalEmblem size={38} />
             </div>
             <div>
               <div className="brandtitle">પરિવાર ઓળખ સંખ્યા</div>
               <div className="brandsub">
-                Parivar ID {officer ? "· સરકારી અધિકારી પોર્ટલ" : "· સત્તાવાર પોર્ટલ"}
+                PARIVAR ID {officer ? "· સરકારી અધિકારી પોર્ટલ" : "· સત્તાવાર પોર્ટલ (ગુજરાત સરકાર)"}
               </div>
             </div>
           </Link>
@@ -233,9 +262,12 @@ function PublicHome() {
       <Header />
       <main>
         <section className="hero">
+          <GujaratMapBackdrop />
           <div className="container heroGrid">
             <div>
-              <div className="eyebrow">ગુજરાત સરકારની ડિજિટલ સેવા</div>
+              <div className="eyebrow">
+                <ShieldCheck size={15} /> ગુજરાત સરકારની ડિજિટલ સેવા (Govt of Gujarat)
+              </div>
               <h1>પરિવાર ઓળખ સંખ્યા</h1>
               <p className="lead">
                 ગુજરાતના પરિવારો માટે એકીકૃત ડિજિટલ ઓળખ અને સરકારી સેવાઓ સુધી સરળ પહોંચ.
@@ -1007,7 +1039,10 @@ function Info({ label, value }) {
 }
 
 function CitizenDashboard() {
-  const family = getFamilyById(getCurrentUser().familyId);
+  usePraviData();
+  const [showCardModal, setShowCardModal] = useState(false);
+  const user = getCurrentUser();
+  const family = getFamilyById(user?.familyId);
   if (!family) return <div className="empty">પરિવાર રેકોર્ડ ઉપલબ્ધ નથી.</div>;
   const apps = getApplications().filter(a => a.familyId === family.id);
 
@@ -1016,6 +1051,33 @@ function CitizenDashboard() {
       title="મારું ડેશબોર્ડ"
       intro="તમારા પરિવારની ઓળખ, યોજનાઓ અને અરજીઓની સંક્ષિપ્ત માહિતી."
     >
+      {/* Verification status quick banner */}
+      <div className="verificationBanner">
+        <div>
+          <h3>
+            {family.verified
+              ? "✓ સત્તાવાર ડિજિટલ પ્રમાણિત પરિવાર (UIDAI e-KYC ચકાસાયેલ)"
+              : "⚠️ પરિવાર e-KYC ચકાસણી બાકી છે"}
+          </h3>
+          <p>
+            {family.verified
+              ? "તમારા પરિવારના તમામ રેકોર્ડ સંબંધિત તાલુકા/જિલ્લા વહીવટી તંત્ર દ્વારા માન્ય છે."
+              : "તમામ સરકારી યોજનાઓનો સીધો લાભ મેળવવા માટે તુરંત આધાર e-KYC પૂર્ણ કરો."}
+          </p>
+        </div>
+        <div className="verificationActions">
+          {family.verified ? (
+            <button className="primary smallButton" onClick={() => setShowCardModal(true)}>
+              <Printer size={15} /> ડિજિટલ પરિવાર કાર્ડ જુઓ
+            </button>
+          ) : (
+            <Link className="primary smallButton" to="/citizen/verification">
+              <ShieldCheck size={15} /> આધાર e-KYC ચકાસો
+            </Link>
+          )}
+        </div>
+      </div>
+
       <div className="identitybox">
         <Info label="પરિવાર ઓળખ સંખ્યા" value={family.id} />
         <Info label="ચકાસણી" value={<Status value={family.verified ? "verified" : "pending"} />} />
@@ -1035,10 +1097,13 @@ function CitizenDashboard() {
           <p>
             રહેઠાણ: <strong>{family.housing}</strong>
           </p>
-          <div style={{ marginTop: "16px" }}>
+          <div style={{ marginTop: "16px", display: "flex", gap: "10px" }}>
             <Link className="secondary smallButton" to="/citizen/family">
               સંપૂર્ણ વિગતો જુઓ
             </Link>
+            <button className="secondary smallButton" onClick={() => setShowCardModal(true)}>
+              <Printer size={14} /> પરિવાર કાર્ડ
+            </button>
           </div>
         </section>
         <section className="panel">
@@ -1057,19 +1122,25 @@ function CitizenDashboard() {
             <p className="muted">હાલ કોઈ અરજી કરેલ નથી.</p>
           )}
           <div style={{ marginTop: "16px" }}>
-            <Link className="secondary smallButton" to="/citizen/schemes">
+            <Link className="primary smallButton" to="/citizen/schemes">
               યોજનાઓ જુઓ અને અરજી કરો
             </Link>
           </div>
         </section>
       </div>
+
+      {showCardModal && (
+        <ParivarIdCard family={family} user={user} onClose={() => setShowCardModal(false)} />
+      )}
     </Page>
   );
 }
 
 function FamilyPage({ membersOnly = false }) {
-  const [redrawKey, setRedraw] = useState(0);
-  const [showModal, setShowModal] = useState(false);
+  usePraviData();
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
+  const [feedback, setFeedback] = useState("");
   const [memberForm, setMemberForm] = useState({
     name: "",
     relation: "પુત્ર",
@@ -1078,7 +1149,8 @@ function FamilyPage({ membersOnly = false }) {
   });
   const [error, setError] = useState("");
 
-  const family = getFamilyById(getCurrentUser().familyId);
+  const user = getCurrentUser();
+  const family = getFamilyById(user?.familyId);
   if (!family) return <div className="empty">પરિવાર રેકોર્ડ મળ્યો નથી.</div>;
 
   const handleAddMember = e => {
@@ -1088,19 +1160,55 @@ function FamilyPage({ membersOnly = false }) {
     if (!memberForm.age || Number(memberForm.age) <= 0) return setError("માન્ય ઉંમર દાખલ કરો.");
     try {
       addFamilyMember(family.id, memberForm);
-      setShowModal(false);
+      setShowAddModal(false);
       setMemberForm({ name: "", relation: "પુત્ર", age: "", gender: "પુરુષ" });
-      setRedraw(v => v + 1);
+      setFeedback("નવો સભ્ય સફળતાપૂર્વક ઉમેરવામાં આવ્યો છે.");
+      setTimeout(() => setFeedback(""), 3500);
     } catch (err) {
       setError(err.message);
     }
   };
 
+  const handleEditMemberSubmit = e => {
+    e.preventDefault();
+    if (!editingMember.name.trim()) return;
+    updateFamilyMember(family.id, editingMember.id, {
+      name: editingMember.name,
+      relation: editingMember.relation,
+      age: Number(editingMember.age),
+      gender: editingMember.gender
+    });
+    setEditingMember(null);
+    setFeedback("સભ્યની વિગતો અપડેટ થઈ ગઈ છે.");
+    setTimeout(() => setFeedback(""), 3500);
+  };
+
+  const handleDeleteMember = memberId => {
+    if (window.confirm("શું આપ આ સભ્યને પરિવારમાંથી દૂર કરવા માંગો છો?")) {
+      deleteFamilyMember(family.id, memberId);
+      setFeedback("સભ્ય દૂર કરવામાં આવ્યો છે.");
+      setTimeout(() => setFeedback(""), 3500);
+    }
+  };
+
+  const handleVerifyMember = memberId => {
+    verifyFamilyMember(family.id, memberId, "verified");
+    setFeedback("સભ્ય e-KYC ચકાસણી સફળ થઈ!");
+    setTimeout(() => setFeedback(""), 3500);
+  };
+
   return (
     <Page
       title={membersOnly ? "પરિવારના સભ્યો" : "મારું પરિવાર"}
-      intro="પરિવારની વિગતો અને સભ્યોની ચકાસણી સ્થિતિ."
+      intro="પરિવારની વિગતો, સભ્યોનું સંચાલન અને ચકાસણી સ્થિતિ."
     >
+      {feedback && (
+        <div className="notice" style={{ marginBottom: "20px" }}>
+          <CheckCircle2 size={18} />
+          <p>{feedback}</p>
+        </div>
+      )}
+
       {!membersOnly && (
         <div className="identitybox">
           <Info label="Family ID" value={family.id} />
@@ -1115,7 +1223,7 @@ function FamilyPage({ membersOnly = false }) {
       <section className="sectionInner">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
           <h2>પરિવારના સભ્યો ({family.members.length})</h2>
-          <button className="primary smallButton" onClick={() => setShowModal(true)}>
+          <button className="primary smallButton" onClick={() => setShowAddModal(true)}>
             <UserPlus size={15} /> નવો સભ્ય ઉમેરો
           </button>
         </div>
@@ -1129,6 +1237,7 @@ function FamilyPage({ membersOnly = false }) {
                 <th>ઉંમર</th>
                 <th>લિંગ</th>
                 <th>ચકાસણી સ્થિતિ</th>
+                <th>કાર્યવાહી</th>
               </tr>
             </thead>
             <tbody>
@@ -1143,6 +1252,36 @@ function FamilyPage({ membersOnly = false }) {
                   <td>
                     <Status value={m.status} />
                   </td>
+                  <td>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      {m.status !== "verified" && (
+                        <button
+                          className="tablebutton approve"
+                          onClick={() => handleVerifyMember(m.id)}
+                          title="સભ્ય e-KYC ચકાસો"
+                        >
+                          <Check size={12} /> e-KYC ચકાસો
+                        </button>
+                      )}
+                      <button
+                        className="tablebutton"
+                        onClick={() => setEditingMember(m)}
+                        title="સુધારો"
+                      >
+                        <Edit3 size={12} /> સુધારો
+                      </button>
+                      {family.members.length > 1 && (
+                        <button
+                          className="tablebutton"
+                          style={{ color: "var(--red)", borderColor: "var(--red)" }}
+                          onClick={() => handleDeleteMember(m.id)}
+                          title="દૂર કરો"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1151,12 +1290,12 @@ function FamilyPage({ membersOnly = false }) {
       </section>
 
       {/* Add Member Modal */}
-      {showModal && (
+      {showAddModal && (
         <div className="modalOverlay">
           <div className="modalCard">
             <div className="modalHead">
               <h2>પરિવારમાં નવો સભ્ય ઉમેરો</h2>
-              <button className="modalClose" onClick={() => setShowModal(false)}>
+              <button className="modalClose" onClick={() => setShowAddModal(false)}>
                 <X size={20} />
               </button>
             </div>
@@ -1216,7 +1355,7 @@ function FamilyPage({ membersOnly = false }) {
                 <button
                   type="button"
                   className="secondary"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => setShowAddModal(false)}
                 >
                   રદ કરો
                 </button>
@@ -1228,19 +1367,192 @@ function FamilyPage({ membersOnly = false }) {
           </div>
         </div>
       )}
+
+      {/* Edit Member Modal */}
+      {editingMember && (
+        <div className="modalOverlay">
+          <div className="modalCard">
+            <div className="modalHead">
+              <h2>સભ્યની વિગતો સુધારો</h2>
+              <button className="modalClose" onClick={() => setEditingMember(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleEditMemberSubmit}>
+              <div className="modalBody">
+                <label>
+                  સભ્યનું પૂરું નામ
+                  <input
+                    required
+                    value={editingMember.name}
+                    onChange={e => setEditingMember({ ...editingMember, name: e.target.value })}
+                  />
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                  <label>
+                    સંબંધ
+                    <select
+                      value={editingMember.relation}
+                      onChange={e => setEditingMember({ ...editingMember, relation: e.target.value })}
+                    >
+                      <option value="પરિવારના મુખ્ય સભ્ય">પરિવારના મુખ્ય સભ્ય</option>
+                      <option value="પત્ની">પત્ની</option>
+                      <option value="પુત્ર">પુત્ર</option>
+                      <option value="પુત્રી">પુત્રી</option>
+                      <option value="પિતા">પિતા</option>
+                      <option value="માતા">માતા</option>
+                      <option value="ભાઈ">ભાઈ</option>
+                      <option value="બહેન">બહેન</option>
+                      <option value="અન્ય સભ્ય">અન્ય સભ્ય</option>
+                    </select>
+                  </label>
+                  <label>
+                    ઉંમર (વર્ષ)
+                    <input
+                      required
+                      type="number"
+                      value={editingMember.age}
+                      onChange={e => setEditingMember({ ...editingMember, age: e.target.value })}
+                    />
+                  </label>
+                </div>
+                <label>
+                  લિંગ
+                  <select
+                    value={editingMember.gender}
+                    onChange={e => setEditingMember({ ...editingMember, gender: e.target.value })}
+                  >
+                    <option value="પુરુષ">પુરુષ</option>
+                    <option value="સ્ત્રી">સ્ત્રી</option>
+                    <option value="અન્ય">અન્ય</option>
+                  </select>
+                </label>
+              </div>
+              <div className="modalFoot">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setEditingMember(null)}
+                >
+                  રદ કરો
+                </button>
+                <button type="submit" className="primary">
+                  સુધારાઓ સાચવો
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </Page>
   );
 }
 
 function CitizenVerificationPage() {
-  const family = getFamilyById(getCurrentUser().familyId);
+  usePraviData();
+  const [showKycModal, setShowKycModal] = useState(false);
+  const [showCardModal, setShowCardModal] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpInput, setOtpInput] = useState("");
+  const [otpCountdown, setOtpCountdown] = useState(30);
+  const [error, setError] = useState("");
+  const [toastMsg, setToastMsg] = useState("");
+
+  const user = getCurrentUser();
+  const family = getFamilyById(user?.familyId);
   if (!family) return <div className="empty">પરિવાર રેકોર્ડ મળ્યો નથી.</div>;
+
+  useEffect(() => {
+    let timer;
+    if (otpSent && otpCountdown > 0) {
+      timer = setInterval(() => setOtpCountdown(c => c - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [otpSent, otpCountdown]);
+
+  const handleStartKyc = () => {
+    setShowKycModal(true);
+    setOtpSent(false);
+    setOtpInput("");
+    setOtpCountdown(30);
+    setError("");
+  };
+
+  const handleSendOtp = () => {
+    setOtpSent(true);
+    setOtpCountdown(30);
+    setOtpInput("489201"); // Auto demo convenience
+  };
+
+  const handleVerifyOtp = e => {
+    e.preventDefault();
+    if (otpInput.length < 6) {
+      return setError("કૃપા કરીને 6 આંકડાનો માન્ય OTP દાખલ કરો.");
+    }
+    verifyFamilyKyc(family.id, { aadhaarMasked: "XXXX-XXXX-4892" });
+    setShowKycModal(false);
+    setToastMsg("પરિવાર આધાર e-KYC ચકાસણી સફળતાપૂર્વક પૂર્ણ થઈ ગઈ છે!");
+    setTimeout(() => setToastMsg(""), 4500);
+  };
+
+  const handleVerifyDocument = docName => {
+    verifyDocument(family.id, docName, "ચકાસાયેલ");
+    setToastMsg(`દસ્તાવેજ "${docName}" ચકાસાયેલ તરીકે નોંધાયો છે.`);
+    setTimeout(() => setToastMsg(""), 3500);
+  };
+
+  const handleVerifyMember = memberId => {
+    verifyFamilyMember(family.id, memberId, "verified");
+    setToastMsg("સભ્ય e-KYC ચકાસણી સફળ થઈ!");
+    setTimeout(() => setToastMsg(""), 3500);
+  };
+
+  const documents = family.documents || [
+    { name: "રહેઠાણ પુરાવો (લાઈટ બિલ / વેરા બિલ)", status: family.verified ? "ચકાસાયેલ" : "બાકી" },
+    { name: "આવક પ્રમાણપત્ર રેકોર્ડ (મામલતદાર કચેરી)", status: family.verified ? "ચકાસાયેલ" : "બાકી" },
+    { name: "પરિવાર સભ્ય ઓળખ (ચૂંટણી કાર્ડ / આધાર)", status: family.verified ? "ચકાસાયેલ" : "બાકી" },
+    { name: "રેશન કાર્ડ પ્રમાણીકરણ", status: family.verified ? "ચકાસાયેલ" : "બાકી" }
+  ];
 
   return (
     <Page
-      title="દસ્તાવેજો અને ચકાસણી સ્થિતિ"
-      intro="તમારા પરિવાર અને સભ્યોની સત્તાવાર વહીવટી ચકાસણી સ્થિતિ."
+      title="દસ્તાવેજો અને આધાર e-KYC ચકાસણી કેન્દ્ર"
+      intro="તમારા પરિવાર અને સભ્યોની સત્તાવાર ડિજિટલ પ્રમાણીકરણ વ્યવસ્થા."
     >
+      {toastMsg && (
+        <div className="notice" style={{ marginBottom: "20px", background: "var(--greenbg)", borderColor: "var(--green)", color: "var(--green)" }}>
+          <CheckCircle2 size={18} />
+          <p><strong>{toastMsg}</strong></p>
+        </div>
+      )}
+
+      {/* Main e-KYC Verification Banner */}
+      <div className="verificationBanner">
+        <div>
+          <h3>
+            {family.verified
+              ? "✓ સત્તાવાર ડિજિટલ ચકાસાયેલ પરિવાર (UIDAI e-KYC)"
+              : "⚠️ આધાર e-KYC ચકાસણી બાકી છે"}
+          </h3>
+          <p>
+            {family.verified
+              ? `આધાર પ્રમાણિત: ${family.aadhaarMasked || "XXXX-XXXX-4892"} · ચકાસણી તારીખ: ${family.kycDate || "15 સપ્ટેમ્બર 2026"}`
+              : "સરકારી કલ્યાણકારી યોજનાઓ અને લાભો મેળવવા માટે તમારા પરિવારનું આધાર e-KYC ઓનલાઇન OTP દ્વારા પૂર્ણ કરો."}
+          </p>
+        </div>
+        <div className="verificationActions">
+          {family.verified ? (
+            <button className="primary" onClick={() => setShowCardModal(true)}>
+              <Printer size={16} /> ડિજિટલ પરિવાર ઓળખ પત્ર ડાઉનલોડ કરો
+            </button>
+          ) : (
+            <button className="primary" onClick={handleStartKyc}>
+              <ShieldCheck size={16} /> આધાર e-KYC ચકાસો (OTP દ્વારા)
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="identitybox" style={{ marginBottom: "24px" }}>
         <Info label="Family ID" value={family.id} />
         <Info label="સમગ્ર પરિવાર ચકાસણી" value={<Status value={family.verified ? "verified" : "pending"} />} />
@@ -1250,42 +1562,43 @@ function CitizenVerificationPage() {
 
       <div className="portalGrid">
         <section className="panel">
-          <h2>ચકાસણી વિગતો</h2>
-          <div style={{ display: "grid", gap: "14px", marginTop: "16px" }}>
-            <div className="docUploadItem">
-              <div>
-                <strong>રહેઠાણ પુરાવો</strong>
-                <p style={{ margin: "2px 0", fontSize: "12px", color: "var(--muted)" }}>
-                  {family.address} ({family.housing})
-                </p>
-              </div>
-              <Status value={family.verified ? "verified" : "pending"} />
-            </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+            <h2>સત્તાવાર દસ્તાવેજ ચકાસણી</h2>
+            <span style={{ fontSize: "12px", color: "var(--muted)" }}>ડિજિટલ ગુજરાત રેકોર્ડ</span>
+          </div>
 
-            <div className="docUploadItem">
-              <div>
-                <strong>આવક પ્રમાણપત્ર રેકોર્ડ</strong>
-                <p style={{ margin: "2px 0", fontSize: "12px", color: "var(--muted)" }}>
-                  વાર્ષિક આવક ₹ {money(family.income)}
-                </p>
-              </div>
-              <Status value={family.verified ? "verified" : "pending"} />
-            </div>
-
-            <div className="docUploadItem">
-              <div>
-                <strong>પરિવાર સભ્ય ઓળખ</strong>
-                <p style={{ margin: "2px 0", fontSize: "12px", color: "var(--muted)" }}>
-                  કુલ {family.members.length} સભ્યો નોંધાયેલ
-                </p>
-              </div>
-              <Status value={family.verified ? "verified" : "pending"} />
-            </div>
+          <div className="docUploadList">
+            {documents.map((doc, idx) => {
+              const isVerified = doc.status === "ચકાસાયેલ" || family.verified;
+              return (
+                <div className="docUploadItem" key={idx}>
+                  <div>
+                    <strong>{doc.name}</strong>
+                    <p style={{ margin: "2px 0", fontSize: "11px", color: "var(--muted)" }}>
+                      {isVerified ? "ડિજિટલ લોકર દ્વારા ચકાસાયેલ" : "અધિકારી સમીક્ષા માટે અપલોડ જરૂરી"}
+                    </p>
+                  </div>
+                  {isVerified ? (
+                    <span className="docUploaded">
+                      <CheckCircle2 size={15} /> ચકાસાયેલ
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="docUploadBtn"
+                      onClick={() => handleVerifyDocument(doc.name)}
+                    >
+                      <Upload size={13} /> અપલોડ & ચકાસો
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
 
         <section className="panel">
-          <h2>અધિકારી પ્રક્રિયા નોંધ</h2>
+          <h2>અધિકારી પ્રક્રિયા અને ચકાસણી નોંધ</h2>
           <p style={{ fontSize: "14px", color: "#475466", lineHeight: "1.6" }}>
             {family.verified
               ? "તમારા પરિવારના તમામ રેકોર્ડ સંબંધિત તાલુકા/જિલ્લા વહીવટી તંત્ર દ્વારા ચકાસાયેલ છે. આપ તમામ પાત્ર સરકારી યોજનાઓ માટે સીધા અરજી કરી શકો છો."
@@ -1294,16 +1607,198 @@ function CitizenVerificationPage() {
           <div className="notice" style={{ marginTop: "20px" }}>
             <ShieldCheck size={20} />
             <p>
-              ચકાસણીમાં કોઈ ભૂલ જણાય તો નજીકના તાલુકા સેવા સદન ખાતે સંપર્ક કરી સુધારો કરાવી શકો છો.
+              UIDAI e-KYC પૂર્ણ કર્યા પછી તમામ પારિવારિક ઓળખ પત્રો અને યોજનાઓ તુરંત સક્રિય થાય છે.
             </p>
           </div>
         </section>
       </div>
+
+      {/* Individual Family Members Verification Section */}
+      <section className="sectionInner">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+          <h2>પરિવાર સભ્યોની e-KYC ચકાસણી સ્થિતિ ({family.members.length})</h2>
+          <Link className="secondary smallButton" to="/citizen/members">
+            સભ્યો વ્યવસ્થાપન
+          </Link>
+        </div>
+
+        <div className="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th>સભ્યનું નામ</th>
+                <th>સંબંધ</th>
+                <th>ઉંમર</th>
+                <th>લિંગ</th>
+                <th>ચકાસણી સ્થિતિ</th>
+                <th>કાર્યવાહી</th>
+              </tr>
+            </thead>
+            <tbody>
+              {family.members.map(m => (
+                <tr key={m.id}>
+                  <td>
+                    <strong>{m.name}</strong>
+                  </td>
+                  <td>{m.relation}</td>
+                  <td>{m.age} વર્ષ</td>
+                  <td>{m.gender || "-"}</td>
+                  <td>
+                    <Status value={m.status} />
+                  </td>
+                  <td>
+                    {m.status !== "verified" ? (
+                      <button
+                        className="tablebutton approve"
+                        onClick={() => handleVerifyMember(m.id)}
+                      >
+                        <Check size={13} /> e-KYC ચકાસો
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: "12px", color: "var(--green)", fontWeight: 700 }}>
+                        ✓ પ્રમાણિત
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Aadhaar e-KYC Modal */}
+      {showKycModal && (
+        <div className="modalOverlay">
+          <div className="modalCard" style={{ maxWidth: "540px" }}>
+            <div className="modalHead">
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <NationalEmblem size={28} />
+                <h2>આધાર e-KYC ઓનલાઇન ચકાસણી</h2>
+              </div>
+              <button className="modalClose" onClick={() => setShowKycModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleVerifyOtp}>
+              <div className="modalBody">
+                <div className="notice" style={{ margin: "0 0 10px 0" }}>
+                  <ShieldCheck size={18} />
+                  <p>
+                    ભારત સરકાર UIDAI આધાર સર્વર દ્વારા સીધું OTP પ્રમાણીકરણ.
+                  </p>
+                </div>
+
+                <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "6px", border: "1px solid var(--line-light)" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", fontSize: "13px" }}>
+                    <div>
+                      <span style={{ color: "var(--muted)", fontSize: "11px", display: "block" }}>પરિવારના મુખ્ય સભ્ય:</span>
+                      <strong>{family.head}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: "var(--muted)", fontSize: "11px", display: "block" }}>આધાર ક્રમાંક (સુરક્ષિત):</span>
+                      <strong>XXXX-XXXX-4892</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: "var(--muted)", fontSize: "11px", display: "block" }}>લિંક થયેલ મોબાઇલ:</span>
+                      <strong>XXXXXX{user?.mobile ? user.mobile.slice(-4) : "3210"}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: "var(--muted)", fontSize: "11px", display: "block" }}>પરિવાર ID:</span>
+                      <strong>{family.id}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {!otpSent ? (
+                  <div style={{ textAlign: "center", padding: "20px 0" }}>
+                    <p style={{ fontSize: "14px", color: "var(--navy)", marginBottom: "16px" }}>
+                      આધાર સાથે નોંધાયેલા મોબાઇલ નંબર પર એક સમયનો પાસવર્ડ (OTP) મેળવવા માટે નીચે ક્લિક કરો:
+                    </p>
+                    <button type="button" className="primary" onClick={handleSendOtp}>
+                      OTP મોકલો (Send OTP) <ArrowRight size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "10px" }}>
+                      <label style={{ margin: 0 }}>
+                        દાખલ કરો 6 આંકડાનો OTP:
+                      </label>
+                      <button
+                        type="button"
+                        style={{ border: 0, background: "none", color: "var(--orange)", fontSize: "12px", fontWeight: 700 }}
+                        onClick={() => setOtpInput("489201")}
+                      >
+                        (ડેમો OTP ભરો: 489201)
+                      </button>
+                    </div>
+
+                    <div className="otpBox">
+                      <input
+                        type="text"
+                        maxLength={6}
+                        required
+                        value={otpInput}
+                        onChange={e => setOtpInput(e.target.value.replace(/\D/g, ""))}
+                        placeholder="••••••"
+                        style={{ letterSpacing: "8px", width: "220px", height: "46px" }}
+                      />
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", color: "var(--muted)" }}>
+                      <span>
+                        {otpCountdown > 0 ? `ફરીથી OTP મોકલો: ${otpCountdown} સેકન્ડ` : "OTP મળ્યો નથી?"}
+                      </span>
+                      {otpCountdown === 0 && (
+                        <button
+                          type="button"
+                          style={{ border: 0, background: "none", color: "var(--blue)", fontWeight: 700 }}
+                          onClick={handleSendOtp}
+                        >
+                          ફરીથી OTP મોકલો
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {error && <div className="error">{error}</div>}
+              </div>
+
+              <div className="modalFoot">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setShowKycModal(false)}
+                >
+                  રદ કરો
+                </button>
+                {otpSent && (
+                  <button type="submit" className="primary">
+                    <CheckCircle2 size={16} /> પ્રમાણીકરણ પૂર્ણ કરો
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Parivar ID Card Modal */}
+      {showCardModal && (
+        <ParivarIdCard
+          family={family}
+          user={user}
+          onClose={() => setShowCardModal(false)}
+        />
+      )}
     </Page>
   );
 }
 
 function SchemesPage() {
+  usePraviData();
   const [, redraw] = useState(0);
   const [selectedScheme, setSelectedScheme] = useState(null);
   const [applicantMember, setApplicantMember] = useState("");
@@ -1512,6 +2007,7 @@ function SchemesPage() {
 }
 
 function ApplicationsPage() {
+  usePraviData();
   const family = getFamilyById(getCurrentUser().familyId);
   if (!family) return <div className="empty">પરિવાર રેકોર્ડ મળ્યો નથી.</div>;
   const apps = getApplications().filter(a => a.familyId === family.id);
@@ -1533,7 +2029,12 @@ function ApplicationsPage() {
                   <span className="muted">{a.id}</span>
                   <h2>{schemeName}</h2>
                 </div>
-                <Status value={a.status} />
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <button className="secondary smallButton" onClick={() => window.print()} title="અરજી પાવતી પ્રિન્ટ">
+                    <Printer size={13} /> પાવતી પ્રિન્ટ
+                  </button>
+                  <Status value={a.status} />
+                </div>
               </div>
 
               <div className="appmeta">
@@ -1648,28 +2149,121 @@ function ApplicationsPage() {
  * Contains personal info, Family ID, family info, verification status, active applications, documents, and history.
  */
 function CitizenProfilePage() {
+  usePraviData();
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showCardModal, setShowCardModal] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
+
   const user = getCurrentUser();
-  const family = getFamilyById(user.familyId);
-  const apps = getApplicationsByFamilyId(user.familyId);
+  const family = getFamilyById(user?.familyId);
+  const apps = getApplicationsByFamilyId(user?.familyId);
+
+  const [editForm, setEditForm] = useState({
+    name: user?.name || "",
+    mobile: user?.mobile || "",
+    email: user?.email || "",
+    address: family?.address || "",
+    district: family?.district || "ગાંધીનગર",
+    income: family?.income || 0
+  });
+
+  const handleOpenEdit = () => {
+    setEditForm({
+      name: user?.name || "",
+      mobile: user?.mobile || "",
+      email: user?.email || "",
+      address: family?.address || "",
+      district: family?.district || "ગાંધીનગર",
+      income: family?.income || 0
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveProfile = e => {
+    e.preventDefault();
+    updateUserProfile(user.id, {
+      name: editForm.name,
+      mobile: editForm.mobile,
+      email: editForm.email,
+      address: editForm.address,
+      district: editForm.district
+    });
+    if (family) {
+      updateFamilyDetails(family.id, {
+        head: editForm.name,
+        address: editForm.address,
+        district: editForm.district,
+        income: Number(editForm.income)
+      });
+    }
+    setShowEditModal(false);
+    setToastMsg("પ્રોફાઇલ વિગતો સફળતાપૂર્વક અપડેટ થઈ ગઈ છે!");
+    setTimeout(() => setToastMsg(""), 4000);
+  };
+
+  const handleVerifyMember = memberId => {
+    if (family) {
+      verifyFamilyMember(family.id, memberId, "verified");
+      setToastMsg("સભ્ય e-KYC ચકાસણી સફળ થઈ!");
+      setTimeout(() => setToastMsg(""), 3500);
+    }
+  };
 
   return (
     <Page title="નાગરિક પ્રોફાઇલ" intro="તમારી વ્યક્તિગત અને પારિવારિક ઓળખની સત્તાવાર માહિતી.">
+      {toastMsg && (
+        <div className="notice" style={{ marginBottom: "20px", background: "var(--greenbg)", borderColor: "var(--green)", color: "var(--green)" }}>
+          <CheckCircle2 size={18} />
+          <p><strong>{toastMsg}</strong></p>
+        </div>
+      )}
+
+      {/* Verification Status & Official Seal Banner */}
+      <div className="verificationBanner">
+        <div>
+          <h3>
+            {family?.verified
+              ? "✓ સત્તાવાર ડિજિટલ પ્રમાણિત પરિવાર (UIDAI e-KYC ચકાસાયેલ)"
+              : "⚠️ પરિવાર e-KYC ચકાસણી બાકી છે"}
+          </h3>
+          <p>
+            {family?.verified
+              ? `આધાર ક્રમાંક: ${family.aadhaarMasked || "XXXX-XXXX-4892"} · ચકાસણી તારીખ: ${family.kycDate || "15 સપ્ટેમ્બર 2026"}`
+              : "તમામ સરકારી યોજનાઓ માટે તુરંત આધાર e-KYC પૂર્ણ કરો."}
+          </p>
+        </div>
+        <div className="verificationActions">
+          <button className="secondary" onClick={handleOpenEdit}>
+            <Edit3 size={15} /> પ્રોફાઇલ સંપાદિત કરો
+          </button>
+          {family?.verified ? (
+            <button className="primary" onClick={() => setShowCardModal(true)}>
+              <Printer size={15} /> ડિજિટલ પરિવાર કાર્ડ જુઓ
+            </button>
+          ) : (
+            <Link className="primary" to="/citizen/verification">
+              <ShieldCheck size={15} /> આધાર e-KYC ચકાસો
+            </Link>
+          )}
+        </div>
+      </div>
+
       {/* 1. Personal & Contact Information */}
       <div className="profileSection">
         <div className="profileSectionHead">
           <h2>વ્યક્તિગત અને સંપર્ક માહિતી</h2>
           <span className="status verified">
-            <User size={14} /> નાગરિક ખાતું
+            <User size={14} /> નાગરિક ખાતું સક્રિય
           </span>
         </div>
         <div className="profileBody">
           <div className="profileGrid">
-            <Info label="પૂરું નામ" value={user.name} />
-            <Info label="મોબાઇલ નંબર" value={user.mobile || "-"} />
-            <Info label="ઈમેલ એડ્રેસ" value={user.email || "-"} />
-            <Info label="નોંધણી તારીખ" value={user.createdAt || "2026"} />
-            <Info label="ઓળખ પ્રમાણીકરણ" value="સત્તાવાર ડિજિટલ રેકોર્ડ" />
-            <Info label="ખાતા પ્રકાર" value="પરિવાર મુખ્ય / સભ્ય" />
+            <Info label="પૂરું નામ" value={user?.name} />
+            <Info label="મોબાઇલ નંબર" value={user?.mobile || "-"} />
+            <Info label="ઈમેલ એડ્રેસ" value={user?.email || "-"} />
+            <Info label="નોંધણી તારીખ" value={user?.createdAt || "2026"} />
+            <Info label="ઓળખ પ્રમાણીકરણ" value={family?.verified ? "✓ UIDAI e-KYC પ્રમાણિત" : "પ્રમાણીકરણ બાકી"} />
+            <Info label="ખાતા પ્રકાર" value="પરિવાર મુખ્ય સભ્ય" />
           </div>
         </div>
       </div>
@@ -1715,6 +2309,7 @@ function CitizenProfilePage() {
                   <th>ઉંમર</th>
                   <th>લિંગ</th>
                   <th>ચકાસણી સ્થિતિ</th>
+                  <th>કાર્યવાહી</th>
                 </tr>
               </thead>
               <tbody>
@@ -1728,6 +2323,21 @@ function CitizenProfilePage() {
                     <td>{m.gender || "-"}</td>
                     <td>
                       <Status value={m.status} />
+                    </td>
+                    <td>
+                      {m.status !== "verified" ? (
+                        <button
+                          className="tablebutton approve"
+                          onClick={() => handleVerifyMember(m.id)}
+                          title="સભ્ય e-KYC ચકાસો"
+                        >
+                          <Check size={12} /> e-KYC ચકાસો
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: "12px", color: "var(--green)", fontWeight: 700 }}>
+                          ✓ પ્રમાણિત
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -1780,6 +2390,102 @@ function CitizenProfilePage() {
           </div>
         )}
       </div>
+
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <div className="modalOverlay">
+          <div className="modalCard">
+            <div className="modalHead">
+              <h2>પ્રોફાઇલ અને પારિવારિક માહિતી સુધારો</h2>
+              <button className="modalClose" onClick={() => setShowEditModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveProfile}>
+              <div className="modalBody">
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                  <label>
+                    પૂરું નામ (મુખ્ય સભ્ય)
+                    <input
+                      required
+                      value={editForm.name}
+                      onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    મોબાઇલ નંબર
+                    <input
+                      required
+                      value={editForm.mobile}
+                      onChange={e => setEditForm({ ...editForm, mobile: e.target.value })}
+                    />
+                  </label>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                  <label>
+                    ઈમેલ સરનામું
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={e => setEditForm({ ...editForm, email: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    જિલ્લો
+                    <input
+                      required
+                      value={editForm.district}
+                      onChange={e => setEditForm({ ...editForm, district: e.target.value })}
+                    />
+                  </label>
+                </div>
+
+                <label>
+                  વાર્ષિક કૌટુંબિક આવક (₹)
+                  <input
+                    type="number"
+                    required
+                    value={editForm.income}
+                    onChange={e => setEditForm({ ...editForm, income: e.target.value })}
+                  />
+                </label>
+
+                <label>
+                  રહેઠાણનું સંપૂર્ણ સરનામું
+                  <textarea
+                    rows={3}
+                    required
+                    value={editForm.address}
+                    onChange={e => setEditForm({ ...editForm, address: e.target.value })}
+                  />
+                </label>
+              </div>
+              <div className="modalFoot">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setShowEditModal(false)}
+                >
+                  રદ કરો
+                </button>
+                <button type="submit" className="primary">
+                  માહિતી સાચવો
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Parivar ID Card Modal */}
+      {showCardModal && family && (
+        <ParivarIdCard
+          family={family}
+          user={user}
+          onClose={() => setShowCardModal(false)}
+        />
+      )}
     </Page>
   );
 }
@@ -1877,6 +2583,7 @@ function OfficerProfilePage() {
 }
 
 function OfficerDashboard() {
+  usePraviData();
   const user = getCurrentUser();
   const families = getFamilies();
   const apps = getApplications();
@@ -1985,6 +2692,7 @@ function Metric({ label, value, icon }) {
 }
 
 function OfficerFamilies({ pendingOnly = false }) {
+  usePraviData();
   const [query, setQuery] = useState("");
   const list = getFamilies()
     .filter(f => !pendingOnly || !f.verified)
@@ -2046,8 +2754,9 @@ function OfficerFamilies({ pendingOnly = false }) {
 }
 
 function OfficerFamily() {
+  usePraviData();
   const { familyId } = useParams();
-  const [, redraw] = useState(0);
+  const [toastMsg, setToastMsg] = useState("");
   const family = getFamilyById(familyId);
   const familyApps = getApplicationsByFamilyId(familyId);
 
@@ -2055,7 +2764,19 @@ function OfficerFamily() {
 
   const verify = status => {
     updateFamilyVerification(family.id, status);
-    redraw(value => value + 1);
+    const msgs = {
+      verified: "પરિવારની સંપૂર્ણ ચકાસણી મંજૂર કરવામાં આવી છે. નાગરિક પ્રોફાઇલ પર 'ચકાસાયેલ' દર્શાવાશે.",
+      rejected: "પરિવાર ચકાસણી નકારી કાઢવામાં આવી છે.",
+      pending: "પરિવાર ચકાસણી માટે વધુ માહિતીની વિનંતી નોંધવામાં આવી છે."
+    };
+    setToastMsg(msgs[status] || "સ્થિતિ અપડેટ કરવામાં આવી.");
+    setTimeout(() => setToastMsg(""), 4500);
+  };
+
+  const handleApproveMember = (memberId, memberName) => {
+    verifyFamilyMember(family.id, memberId, "verified");
+    setToastMsg(`સભ્ય ${memberName} નું e-KYC સફળતાપૂર્વક પ્રમાણિત કરવામાં આવ્યું.`);
+    setTimeout(() => setToastMsg(""), 3500);
   };
 
   return (
@@ -2063,6 +2784,13 @@ function OfficerFamily() {
       title="પરિવાર 360° સત્તાવાર રેકોર્ડ"
       intro="સંપૂર્ણ પરિવાર રેકોર્ડ, સભ્યો અને ચકાસણી કાર્યવાહી."
     >
+      {toastMsg && (
+        <div className="notice" style={{ marginBottom: "20px", background: "var(--greenbg)", borderColor: "var(--green)", color: "var(--green)" }}>
+          <CheckCircle2 size={18} />
+          <p><strong>{toastMsg}</strong></p>
+        </div>
+      )}
+
       <div className="record">
         <div className="recordhead">
           <div>
@@ -2092,6 +2820,7 @@ function OfficerFamily() {
                 <th>સંબંધ</th>
                 <th>લિંગ</th>
                 <th>ચકાસણી સ્થિતિ</th>
+                <th>વહીવટી કાર્યવાહી</th>
               </tr>
             </thead>
             <tbody>
@@ -2105,6 +2834,20 @@ function OfficerFamily() {
                   <td>{m.gender || "-"}</td>
                   <td>
                     <Status value={m.status} />
+                  </td>
+                  <td>
+                    {m.status !== "verified" ? (
+                      <button
+                        className="tablebutton approve"
+                        onClick={() => handleApproveMember(m.id, m.name)}
+                      >
+                        <Check size={12} /> સભ્ય ચકાસો
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: "12px", color: "var(--green)", fontWeight: 700 }}>
+                        ✓ પ્રમાણિત
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -2172,6 +2915,7 @@ function OfficerFamily() {
 }
 
 function OfficerApplications() {
+  usePraviData();
   const user = getCurrentUser();
   const [, redraw] = useState(0);
   const [filter, setFilter] = useState("all");
