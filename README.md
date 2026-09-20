@@ -29,10 +29,14 @@ No database or API keys are required for this demo.
 
 ## Demo
 
-Citizen portal:
-`/`
+Public website: `/`
 
-Officer portal:
-`/?portal=officer`
+Citizen portal: `/citizen`
 
-The demo uses localStorage so the citizen application and officer approval flow can be demonstrated in one browser.
+Officer portal: `/officer`
+
+Demo citizen: `9876543210` / `Citizen@123`
+
+Demo officer: `officer@gujarat.gov.in` / `Officer@123`
+
+The demo uses localStorage for users, families, applications, documents, sessions, and verification status. A citizen can apply for an eligible scheme, then an officer can review and approve it from the separate officer portal.

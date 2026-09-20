@@ -91,3 +91,52 @@ export const getInitialFamilies = () => {
   const saved = localStorage.getItem("pravi-families");
   return saved ? JSON.parse(saved) : initialFamilies;
 };
+
+export const getFamilies = () => JSON.parse(localStorage.getItem("pravi-families") || "null") || initialFamilies;
+export const getApplications = () => JSON.parse(localStorage.getItem("pravi-applications") || "null") || seedApplications;
+export const getCurrentUser = () => JSON.parse(localStorage.getItem("currentUser") || "null");
+export const getFamilyById = id => getFamilies().find(family => family.id === id);
+const demoUsers = [
+  { id: "citizen-demo", name: "રાકેશભાઈ પટેલ", mobile: "9876543210", email: "", password: "Citizen@123", role: "citizen", familyId: "GJ-2026-00124" },
+  { id: "officer-demo", name: "અધિકારી મહોદય", email: "officer@gujarat.gov.in", password: "Officer@123", role: "officer", department: "ગુજરાત સરકાર" }
+];
+export function initializeDemoData() {
+  if (!localStorage.getItem("pravi-families")) localStorage.setItem("pravi-families", JSON.stringify(initialFamilies));
+  if (!localStorage.getItem("pravi-applications")) localStorage.setItem("pravi-applications", JSON.stringify(seedApplications));
+  if (!localStorage.getItem("pravi-users")) localStorage.setItem("pravi-users", JSON.stringify(demoUsers));
+}
+export function getUserByIdentifier(identifier) { return JSON.parse(localStorage.getItem("pravi-users") || "[]").find(user => user.mobile === identifier || user.email === identifier); }
+export function loginUser(identifier, password) {
+  const user = getUserByIdentifier(identifier);
+  if (!user || user.password !== password) return null;
+  const session = { id: user.id, name: user.name, email: user.email, mobile: user.mobile, role: user.role, familyId: user.familyId };
+  localStorage.setItem("currentUser", JSON.stringify(session));
+  return session;
+}
+export function logoutUser() { localStorage.removeItem("currentUser"); }
+export function registerUser(form) {
+  const users = JSON.parse(localStorage.getItem("pravi-users") || "[]");
+  if (users.some(user => user.mobile === form.mobile || (form.email && user.email === form.email))) throw new Error("આ મોબાઇલ અથવા ઈમેલથી ખાતું પહેલેથી છે.");
+  const familyId = `GJ-2026-${String(Date.now()).slice(-5)}`;
+  const family = { id: familyId, head: form.head || form.name, address: form.address, district: form.district, taluka: form.taluka, village: form.village, income: Number(form.income) || 0, housing: form.housing, verified: false, members: [{ id: `${familyId}-001`, name: form.head || form.name, age: 35, relation: "પરિવારના મુખ્ય સભ્ય", gender: "-", status: "pending" }, ...(form.members || "").split(",").map((name, index) => name.trim() ? ({ id: `${familyId}-${String(index + 2).padStart(3, "0")}`, name: name.trim(), age: 18, relation: "પરિવારના સભ્ય", gender: "-", status: "pending" }) : null).filter(Boolean)] };
+  const user = { id: `citizen-${Date.now()}`, name: form.name, mobile: form.mobile, email: form.email, password: form.password, role: "citizen", familyId };
+  localStorage.setItem("pravi-users", JSON.stringify([...users, user]));
+  localStorage.setItem("pravi-families", JSON.stringify([...getFamilies(), family]));
+  loginUser(form.mobile, form.password);
+  return { familyId };
+}
+export function createApplication({ familyId, schemeId, applicant, documents = [] }) {
+  const apps = getApplications(); const id = `APP-2026-${String(Date.now()).slice(-5)}`; const date = new Date().toLocaleDateString("gu-IN");
+  const application = { id, familyId, schemeId, applicant, documents, status: "submitted", submitted: date, updated: date, history: [{ status: "submitted", date }] };
+  localStorage.setItem("pravi-applications", JSON.stringify([...apps, application])); refreshStorage(); return application;
+}
+export function updateApplicationStatus(id, status) {
+  const date = new Date().toLocaleDateString("gu-IN");
+  const apps = getApplications().map(app => app.id === id ? { ...app, status, updated: date, history: [...(app.history || []), { status, date }] } : app);
+  localStorage.setItem("pravi-applications", JSON.stringify(apps)); refreshStorage();
+}
+export function updateFamilyVerification(id, status) {
+  const families = getFamilies().map(family => family.id === id ? { ...family, verified: status === "verified", verificationStatus: status, members: family.members.map(member => ({ ...member, status: status === "verified" ? "verified" : member.status })) } : family);
+  localStorage.setItem("pravi-families", JSON.stringify(families)); refreshStorage();
+}
+function refreshStorage() { window.dispatchEvent(new Event("pravi-data")); }
